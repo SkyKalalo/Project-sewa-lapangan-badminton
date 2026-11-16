@@ -1,0 +1,31 @@
+<?php
+
+use App\Http\Controllers\Api\BookingController;
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\AdminBookingController;
+use App\Http\Controllers\Api\OwnerReportController;
+use App\Http\Controllers\Api\ScheduleController;
+use App\Http\Controllers\Api\CustomerController;
+use Illuminate\Support\Facades\Route;
+
+Route::get('/health', fn () => ['status' => 'ok']);
+Route::get('/jadwal', [ScheduleController::class, 'index']);
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+Route::post('/booking', [BookingController::class, 'store'])->middleware('throttle:20,1');
+Route::get('/booking/{kode}', [BookingController::class, 'show']);
+Route::post('/booking/{kode}/bukti-dp', [PaymentController::class, 'upload'])->middleware('throttle:10,1');
+Route::middleware('role:Admin')->prefix('admin')->group(function () {
+    Route::get('/pembayaran', [PaymentController::class, 'pending']);
+    Route::patch('/pembayaran/{id}/verifikasi', [PaymentController::class, 'verify']);
+    Route::post('/booking/{kode}/pelunasan', [PaymentController::class, 'settle']);
+    Route::post('/booking/{kode}/batal', [AdminBookingController::class, 'cancel']);
+    Route::post('/booking/{kode}/pindah-jadwal', [AdminBookingController::class, 'reschedule']);
+    Route::get('/pelanggan/{no_hp}/riwayat', [CustomerController::class, 'history']);
+});
+Route::middleware('role:Pemilik')->prefix('pemilik')->group(function () {
+    Route::get('/laporan', [OwnerReportController::class, 'report']);
+    Route::get('/laporan/jam-sepi', [OwnerReportController::class, 'quietHours']);
+    Route::get('/monitoring-booking', [OwnerReportController::class, 'monitoring']);
+    Route::get('/aktivitas-admin', [OwnerReportController::class, 'activities']);
+});
