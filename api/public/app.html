@@ -1066,7 +1066,6 @@ Check your Browserslist config to be sure that your targets are set up correctly
           { id: 1, nama: 'Lapangan 1', st: 'Tersedia' },
           { id: 2, nama: 'Lapangan 2', st: 'Tersedia' },
           { id: 3, nama: 'Lapangan 3', st: 'Tersedia' },
-          { id: 4, nama: 'Lapangan 4', st: 'Tidak Tersedia' },
         ],
         tarif: [
           { id: 1, nama: 'Weekday Normal (Sen–Jum 07.00–17.00)', rp: 60000 },
@@ -1368,6 +1367,31 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
     // 4. STATE APLIKASI & HANDLER MUTASI
     // =========================================================================
     const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    const API_BASE = window.GOR_API_BASE || '/api';
+    let apiToken = sessionStorage.getItem('gorsmash_api_token') || '';
+
+    async function apiRequest(path, options = {}) {
+      const headers = new Headers(options.headers || {});
+      if (!headers.has('Accept')) headers.set('Accept', 'application/json');
+      if (apiToken) headers.set('Authorization', `Bearer ${apiToken}`);
+      if (options.body && !(options.body instanceof FormData) && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+      const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message || Object.values(body.errors || {}).flat()[0] || 'Permintaan ke server gagal.');
+      return body;
+    }
+
+    function mergeApiBooking(result) {
+      const customerName = result.nama_pelanggan || result.nama;
+      const customer = state.db.cust.find((x) => x.hp.replace(/\D/g, '') === result.no_hp.replace(/\D/g, '')) || { id: nid(state.db.cust), nama: customerName, hp: result.no_hp, ca: new Date().toISOString(), ua: new Date().toISOString() };
+      if (!state.db.cust.some((x) => x.id === customer.id)) state.db.cust.push(customer);
+      const booking = { id: result.id_booking, k: result.kode_booking, c: customer.id, st: result.status_booking, tot: Number(result.total_biaya), exp: result.batas_waktu_dp, pg: 0, hg: false, adm: null, dibuat: new Date().toISOString() };
+      state.db.bk = state.db.bk.filter((x) => x.id !== booking.id && x.k !== booking.k);
+      state.db.bk.push(booking);
+      state.db.det = state.db.det.filter((x) => x.b !== booking.id);
+      if (result.id_lapangan && result.tanggal_main && result.jam_mulai) state.db.det.push({ id: nid(state.db.det), b: booking.id, l: result.id_lapangan, t: result.tanggal_main, s: Number(String(result.jam_mulai).slice(0, 2)), e: Number(String(result.jam_selesai || result.jam_mulai).slice(0, 2)) });
+      return booking;
+    }
 
     const state = {
       db: loadDB(),
@@ -1397,6 +1421,7 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       piutangFilter: 'Semua',
       auditFilter: 'Semua',
       newMethod: { jenis: 'Transfer Bank', nama: '', no: '', an: '' },
+      ownerReport: null,
     };
 
     function setMsg(m, t = '') {
@@ -1440,10 +1465,13 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       state.fb = null;
       state.screen = target;
       render();
+      if (target === 'c-jadwal') refreshPublicSchedule(state.gf.tgl);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function logoutStaff() {
+      apiToken = '';
+      sessionStorage.removeItem('gorsmash_api_token');
       state.ses = null;
       state.loginError = '';
       state.screen = 'c-beranda';
@@ -1545,33 +1573,17 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       if (!file) return;
 
       const ext = file.name.split('.').pop()?.toLowerCase() || '';
-      if (!['jpg', 'jpeg', 'png'].includes(ext) || file.size > 2 * 1024 * 1024) {
-        return setMsg('Format harus JPG atau PNG dengan ukuran maksimal 2 MB.', 'e');
+      if (!['jpg', 'jpeg', 'png'].includes(ext) || file.size > 5 * 1024 * 1024) {
+        return setMsg('Format harus JPG atau PNG dengan ukuran maksimal 5 MB.', 'e');
       }
 
-      const img = await readProofFile(file);
-      if (!img) return setMsg('Gagal membaca file bukti.', 'e');
-
-      db.pay.push({
-        id: nid(db.pay),
-        b: b.id,
-        j: 'DP 50%',
-        n: b.tot / 2,
-        st: 'Menunggu',
-        m: `${mt.jenis} ${mt.nama}`,
-        bk: null,
-        tgl: new Date().toISOString(),
-        vb: null,
-        f: file.name,
-        ty: 'img',
-        img,
-      });
-      appendLog('Pelanggan', b, 'Unggah Bukti DP', `${mt.jenis} ${mt.nama} · ${file.name}`);
-
-      if (!saveDB(db)) {
-        db.pay.pop();
-        db.log.shift();
-        return setMsg('Penyimpanan penuh; gambar tidak tersimpan.', 'e');
+      try {
+        const formData = new FormData();
+        formData.append('no_hp', getCustomer(db, b).hp);
+        formData.append('bukti', file);
+        await apiRequest(`/booking/${encodeURIComponent(b.k)}/bukti-dp`, { method: 'POST', body: formData });
+      } catch (error) {
+        return setMsg(error.message, 'e');
       }
 
       const cust = getCustomer(db, b);
@@ -1584,7 +1596,7 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    function requestMove(bookingId) {
+    async function requestMove(bookingId) {
       const db = state.db;
       const b = getBooking(db, bookingId);
       if (!b) return;
@@ -1593,24 +1605,22 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       const nt = addDays(d.t, 1);
       const cl = checkClash(db, d.l, nt, d.s, d.e, b.id);
       if (cl) return setMsg(cl.past ? 'Jadwal baru sudah lewat.' : cl.off ? `${cl.k} tidak tersedia pada ${nt}.` : `Slot ${nt} ${hh(d.s)}–${hh(d.e)} bentrok dengan ${cl.k}.`, 'e');
-      const reqId = nid(db.req);
-      db.req.unshift({ id: reqId, k: `REQ-${pad(reqId)}`, b: b.id, j: 'Pindah Jadwal', al: 'Permintaan pelanggan pindah jadwal (+1 hari)', t: nt, l: d.l, s: d.s, e: d.e, st: 'Menunggu' });
-      appendLog('Pelanggan', b, 'Ajukan Pindah Jadwal', `Ke ${nt} ${hh(d.s)}–${hh(d.e)}`);
-      saveDB(db);
-      setMsg(`Permintaan pindah jadwal ke ${nt} ${hh(d.s)}–${hh(d.e)} dikirim ke admin.`, 'i');
+      try {
+        await apiRequest(`/booking/${encodeURIComponent(b.k)}/permohonan`, { method: 'POST', body: JSON.stringify({ no_hp: getCustomer(db, b).hp, jenis: 'Pindah Jadwal', alasan: 'Permintaan pelanggan pindah jadwal (+1 hari)', id_lapangan_tujuan: d.l, tanggal_tujuan: nt, jam_tujuan: `${pad(d.s)}:00` }) });
+        setMsg(`Permintaan pindah jadwal ke ${nt} ${hh(d.s)}–${hh(d.e)} dikirim ke admin.`, 'i');
+      } catch (error) { setMsg(error.message, 'e'); }
     }
 
-    function requestCancel(bookingId) {
+    async function requestCancel(bookingId) {
       const db = state.db;
       const b = getBooking(db, bookingId);
       if (!b) return;
       const d = getDetail(db, b);
       const hr = (new Date(`${d.t}T${pad(d.s)}:00`).getTime() - NOW_SIM.getTime()) / 36e5;
-      const reqId = nid(db.req);
-      db.req.unshift({ id: reqId, k: `REQ-${pad(reqId)}`, b: b.id, j: 'Pembatalan', al: `Pembatalan mandiri (${hr < 24 ? '< 24 jam, DP hangus' : '≥ 24 jam'})`, st: 'Menunggu' });
-      appendLog('Pelanggan', b, 'Ajukan Pembatalan', hr < 24 ? '< 24 jam' : '≥ 24 jam');
-      saveDB(db);
-      setMsg(`Permintaan pembatalan untuk ${b.k} berhasil dikirim.`, 'i');
+      try {
+        await apiRequest(`/booking/${encodeURIComponent(b.k)}/permohonan`, { method: 'POST', body: JSON.stringify({ no_hp: getCustomer(db, b).hp, jenis: 'Pembatalan', alasan: `Pembatalan mandiri (${hr < 24 ? '< 24 jam, DP hangus' : '≥ 24 jam'})` }) });
+        setMsg(`Permintaan pembatalan untuk ${b.k} berhasil dikirim.`, 'i');
+      } catch (error) { setMsg(error.message, 'e'); }
     }
 
     // =========================================================================
@@ -1657,7 +1667,7 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
           </div>
 
           <div class="bg-indigo-50/70 border border-indigo-200 rounded-xl p-4">
-            <div class="text-sm"><b>2 · Unggah Bukti Pembayaran</b> <span class="text-xs text-slate-500">(JPG/PNG, maks 2 MB)</span></div>
+            <div class="text-sm"><b>2 · Unggah Bukti Pembayaran</b> <span class="text-xs text-slate-500">(JPG/PNG, maks 5 MB)</span></div>
             ${
               sel
                 ? `<label class="inline-flex items-center gap-2 mt-2.5 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold cursor-pointer">
@@ -2019,7 +2029,7 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       `;
     }
 
-    function submitCustomerBooking() {
+    async function submitCustomerBooking() {
       const f = state.form;
       const endHour = f.jam + f.dur;
       let err = '';
@@ -2036,10 +2046,17 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
         render();
         return;
       }
-      const b = createBooking(f.nama.trim(), f.hp.trim(), f.lap, f.tgl, f.jam, f.dur, null, false);
-      state.form.err = '';
-      state.form.done = { k: b.k, l: f.lap, t: f.tgl, s: f.jam, du: f.dur, nama: f.nama, hp: f.hp, tot: b.tot };
-      render();
+      try {
+        const result = await apiRequest('/booking', { method: 'POST', body: JSON.stringify({ nama_pelanggan: f.nama.trim(), no_hp: f.hp.trim(), id_lapangan: f.lap, tanggal_main: f.tgl, jam_mulai: `${pad(f.jam)}:00`, durasi: f.dur }) });
+        const b = mergeApiBooking(result);
+        state.form.err = '';
+        state.form.done = { k: b.k, l: f.lap, t: f.tgl, s: f.jam, du: f.dur, nama: f.nama, hp: f.hp, tot: b.tot };
+        saveDB(state.db);
+        render();
+      } catch (error) {
+        state.form.err = error.message;
+        render();
+      }
     }
 
     function renderCustomerBooking() {
@@ -2125,6 +2142,59 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       `;
     }
 
+    async function lookupBooking() {
+      const q = state.cekQuery;
+      if (!q.t || !q.hp) return setMsg('Kode booking dan nomor HP wajib diisi.', 'e');
+      try {
+        const remote = await apiRequest(`/booking/${encodeURIComponent(q.t.replace(/\s/g, ''))}?no_hp=${encodeURIComponent(q.hp)}`);
+        mergeApiBooking(remote);
+        saveDB(state.db);
+        render();
+      } catch (error) { setMsg(error.message || 'Booking tidak ditemukan.', 'e'); }
+    }
+
+    async function refreshAdminData() {
+      if (!apiToken || !state.ses) return;
+      try {
+        const [bookings, payments, requests] = await Promise.all([apiRequest('/admin/booking'), apiRequest('/admin/pembayaran'), apiRequest('/admin/permohonan')]);
+        bookings.forEach((row) => mergeApiBooking({ ...row, nama_pelanggan: row.nama, durasi: row.durasi || 1, batas_waktu_dp: row.batas_waktu_dp }));
+        state.db.pay = payments.map((p) => ({ id: p.id_pembayaran, b: state.db.bk.find((b) => b.k === p.kode_booking)?.id, j: p.jenis_pembayaran, n: Number(p.nominal), st: p.status_verifikasi === 'Menunggu Verifikasi' ? 'Menunggu' : p.status_verifikasi, m: p.metode_pembayaran, tgl: p.tanggal_pembayaran, vb: p.diverifikasi_oleh }));
+        state.db.req = requests.map((r) => ({ id: r.id_permohonan, k: `REQ-${String(r.id_permohonan).padStart(2, '0')}`, b: state.db.bk.find((b) => b.k === r.kode_booking)?.id, j: r.jenis, al: r.alasan || '', t: r.tanggal_tujuan, l: r.id_lapangan_tujuan, s: r.jam_tujuan ? Number(String(r.jam_tujuan).slice(0, 2)) : null, e: null, st: r.status }));
+        saveDB(state.db);
+        render();
+      } catch (error) { setMsg(`Data server belum dapat dimuat: ${error.message}`, 'e'); }
+    }
+
+    async function refreshOwnerData() {
+      if (!apiToken || !state.ses) return;
+      const mulai = `${new Date().getFullYear()}-01-01`;
+      const selesai = D0;
+      try {
+        const [report, monitoring] = await Promise.all([apiRequest(`/pemilik/laporan?mulai=${mulai}&selesai=${selesai}`), apiRequest('/pemilik/monitoring-booking')]);
+        state.ownerReport = { ...report, monitoring };
+        render();
+      } catch (error) { setMsg(`Laporan server belum dapat dimuat: ${error.message}`, 'e'); }
+    }
+
+    async function refreshPublicSchedule(date) {
+      try {
+        const rows = await apiRequest(`/jadwal?tanggal=${encodeURIComponent(date)}`);
+        const oldIds = state.db.bk.filter((b) => state.db.det.some((d) => d.b === b.id && d.t === date)).map((b) => b.id);
+        state.db.bk = state.db.bk.filter((b) => !oldIds.includes(b.id));
+        state.db.det = state.db.det.filter((d) => d.t !== date);
+        state.db.pay = state.db.pay.filter((p) => !oldIds.includes(p.b));
+        rows.filter((row) => row.kode_booking).forEach((row, index) => {
+          const id = -((Number(date.replace(/\D/g, '').slice(-6)) || 1) * 100 + index + 1);
+          const start = Number(String(row.jam_mulai).slice(0, 2));
+          const end = Number(String(row.jam_selesai).slice(0, 2));
+          state.db.bk.push({ id, k: row.kode_booking, c: 0, st: row.status_booking, tot: 0, exp: '', pg: 0, hg: false, adm: null, dibuat: '' });
+          state.db.det.push({ id, b: id, l: row.id_lapangan, t: date, s: start, e: end });
+        });
+        saveDB(state.db);
+        render();
+      } catch { /* cache lokal tetap dipakai saat API belum tersedia */ }
+    }
+
     function renderCustomerCek() {
       const db = state.db;
       const q = state.cekQuery;
@@ -2141,7 +2211,7 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
               <div><label class="block text-xs font-semibold text-slate-700 mb-1">Kode Booking</label><input value="${esc(q.t)}" oninput="state.cekQuery.t=this.value; render()" placeholder="BK-0123" class="w-full px-3 py-2.5 rounded-xl border border-indigo-200 bg-white font-mono text-sm" /></div>
               <div><label class="block text-xs font-semibold text-slate-700 mb-1">Nomor HP/WhatsApp Pemesan</label><input value="${esc(q.hp)}" oninput="state.cekQuery.hp=this.value; render()" placeholder="0812-3456-7890" class="w-full px-3 py-2.5 rounded-xl border border-indigo-200 bg-white font-mono text-sm" /></div>
             </div>
-            <p class="text-xs text-slate-500 mt-2.5">Demi privasi, detail booking hanya tampil jika Kode Booking dan Nomor HP cocok.</p>
+            <div class="flex flex-wrap items-center justify-between gap-2 mt-2.5"><p class="text-xs text-slate-500">Demi privasi, detail booking hanya tampil jika Kode Booking dan Nomor HP cocok.</p><button type="button" onclick="lookupBooking()" class="px-3 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold">Cek ke Server</button></div>
           </div>
 
           ${
@@ -2232,19 +2302,23 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
     // =========================================================================
     // 6. LOGIN & PORTAL ADMIN (8 LAYAR OPERASIONAL LENGKAP)
     // =========================================================================
-    function submitLogin(e) {
+    async function submitLogin(e) {
       e.preventDefault();
       const u = document.getElementById('login-u').value.trim();
       const p = document.getElementById('login-p').value;
-      const matched = state.db.user.find((x) => x.u === u && x.ph === sha256((x.sl || '') + p));
-      if (!matched) {
-        state.loginError = 'Username atau kata sandi salah.';
+      try {
+        const result = await apiRequest('/login', { method: 'POST', body: JSON.stringify({ username: u, password: p }) });
+        apiToken = result.token;
+        sessionStorage.setItem('gorsmash_api_token', apiToken);
+        state.ses = { u, r: result.role, nama: u };
+        state.loginError = '';
+        go(result.role === 'Admin' ? 'a-beranda' : 'o-beranda');
+        if (result.role === 'Admin') refreshAdminData();
+        else refreshOwnerData();
+      } catch (error) {
+        state.loginError = error.message || 'Username atau kata sandi salah.';
         render();
-        return;
       }
-      state.ses = matched;
-      state.loginError = '';
-      go(matched.r === 'Admin' ? 'a-beranda' : 'o-beranda');
     }
 
     function renderLogin() {
@@ -2258,51 +2332,51 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
             <div><label class="block text-xs font-semibold text-indigo-200 mb-1">Kata Sandi</label><input id="login-p" type="password" placeholder="Kata sandi" autocomplete="off" class="w-full px-3.5 py-2.5 rounded-xl bg-[#0f1429] border border-indigo-500 text-white font-mono text-sm" /></div>
             <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-teal-600 text-white font-bold text-sm cursor-pointer">Masuk ke Portal Staf →</button>
           </form>
-          <p class="text-xs text-indigo-200 mt-4">Demo: <span class="font-mono">admin01 / admin123</span> · <span class="font-mono">pemilik01 / pemilik123</span> · <button type="button" onclick="go('c-beranda')" class="text-emerald-300 hover:underline font-semibold cursor-pointer">← Portal Pelanggan</button></p>
+          <p class="text-xs text-indigo-200 mt-4">Gunakan akun staf yang terdaftar di server · <button type="button" onclick="go('c-beranda')" class="text-emerald-300 hover:underline font-semibold cursor-pointer">← Portal Pelanggan</button></p>
         </div>
       `;
     }
 
-    function adminVerifyDp(bookingId, ok) {
+    async function adminVerifyDp(bookingId, ok) {
       const db = state.db;
       const b = getBooking(db, bookingId);
       const p = b ? getPendingPay(db, b) : null;
       if (!p) return setMsg('Tidak ada pembayaran menunggu verifikasi.', 'e');
       if (!ok && !state.alasanTolak.trim()) return setMsg('Isi alasan penolakan terlebih dahulu.', 'e');
-      p.st = ok ? 'Terverifikasi' : 'Ditolak';
-      p.vb = state.ses.id;
-      if (ok) b.st = 'DP Terverifikasi';
-      else p.al = state.alasanTolak.trim();
-      appendLog(state.ses, b, ok ? 'Verifikasi DP' : 'Tolak Pembayaran DP', ok ? `DP ${rp(p.n)} terverifikasi` : `Ditolak: ${p.al}`);
-      state.alasanTolak = '';
-      saveDB(db);
-      setMsg(ok ? `DP untuk ${b.k} telah diverifikasi.` : `Bukti DP ${b.k} ditolak.`, ok ? '' : 'y');
+      try {
+        await apiRequest(`/admin/pembayaran/${p.id}/verifikasi`, { method: 'PATCH', body: JSON.stringify({ status: ok ? 'Terverifikasi' : 'Ditolak' }) });
+        p.st = ok ? 'Terverifikasi' : 'Ditolak';
+        p.vb = state.ses.id;
+        if (ok) b.st = 'DP Terverifikasi';
+        state.alasanTolak = '';
+        saveDB(db);
+        setMsg(ok ? `DP untuk ${b.k} telah diverifikasi.` : `Bukti DP ${b.k} ditolak.`, ok ? '' : 'y');
+      } catch (error) { setMsg(error.message, 'e'); }
     }
 
-    function adminSettleCash(bookingId, nominal) {
+    async function adminSettleCash(bookingId, nominal) {
       const db = state.db;
       const b = getBooking(db, bookingId);
       if (!b || b.st !== 'DP Terverifikasi') return;
-      db.pay.push({ id: nid(db.pay), b: b.id, j: 'Pelunasan', n: nominal, st: 'Terverifikasi', m: 'Tunai Kasir', bk: null, tgl: new Date().toISOString(), vb: state.ses.id });
-      b.st = 'Lunas';
-      appendLog(state.ses, b, 'Pelunasan Kasir', `Tunai ${rp(nominal)} → Lunas`);
-      state.kasirNominal = null;
-      saveDB(db);
-      setMsg(`Pelunasan ${b.k} (${rp(nominal)}) dicatat. Status: LUNAS.`);
+      try {
+        await apiRequest(`/admin/booking/${encodeURIComponent(b.k)}/pelunasan`, { method: 'POST', body: JSON.stringify({ nominal }) });
+        b.st = 'Lunas';
+        state.kasirNominal = null;
+        saveDB(db);
+        setMsg(`Pelunasan ${b.k} (${rp(nominal)}) dicatat. Status: LUNAS.`);
+      } catch (error) { setMsg(error.message, 'e'); }
     }
 
-    function adminProcessReq(reqId, ok) {
+    async function adminProcessReq(reqId, ok) {
       const db = state.db;
       const r = db.req.find((x) => x.id === reqId);
       if (!r || r.st !== 'Menunggu') return;
       const b = getBooking(db, r.b);
       if (!b) return;
-      if (!ok) {
-        r.st = 'Ditolak';
-        appendLog(state.ses, b, `Tolak ${r.j}`, r.k);
-        saveDB(db);
-        return setMsg(`Permintaan ${r.k} (${b.k}) ditolak.`, 'y');
-      }
+      try {
+        await apiRequest(`/admin/permohonan/${r.id}/proses`, { method: 'PATCH', body: JSON.stringify({ status: ok ? 'Disetujui' : 'Ditolak', catatan_admin: ok ? '' : 'Ditolak oleh admin' }) });
+      } catch (error) { return setMsg(error.message, 'e'); }
+      if (!ok) { r.st = 'Ditolak'; saveDB(db); return setMsg(`Permintaan ${r.k} (${b.k}) ditolak.`, 'y'); }
       if (r.j === 'Pembatalan') {
         const d = getDetail(db, b);
         const hr = (new Date(`${d.t}T${pad(d.s)}:00`).getTime() - NOW_SIM.getTime()) / 36e5;
@@ -2336,16 +2410,20 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       setMsg(`${l.nama} kini berstatus: ${l.st}.`);
     }
 
-    function saveManualAdminBooking() {
+    async function saveManualAdminBooking() {
       const m = state.manual;
       const endHour = m.s + m.du;
       if (m.nama.trim().length < 2 || m.hp.replace(/\D/g, '').length < 9) return setMsg('Nama dan nomor HP minimal 9 digit wajib diisi.', 'e');
       if (endHour > 23) return setMsg('Jam selesai melebihi 23:00 WIB.', 'e');
       const cl = checkClash(state.db, m.lap, m.t, m.s, endHour);
       if (cl) return setMsg(cl.past ? 'Jam mulai sudah lewat. Pilih jam setelah waktu sekarang.' : cl.off ? `${cl.k} tidak tersedia.` : `Bentrok dengan ${cl.k}.`, 'e');
-      const b = createBooking(m.nama.trim(), m.hp.trim(), m.lap, m.t, m.s, m.du, state.ses, m.ok);
-      state.manual = { ...state.manual, nama: '', hp: '', img: '', imgn: '', ok: false };
-      setMsg(`Booking manual ${b.k} berhasil dicatat (${b.st}).`);
+      try {
+        const result = await apiRequest('/admin/booking', { method: 'POST', body: JSON.stringify({ nama_pelanggan: m.nama.trim(), no_hp: m.hp.trim(), id_lapangan: m.lap, tanggal_main: m.t, jam_mulai: `${pad(m.s)}:00`, durasi: m.du, dp_terverifikasi: m.ok }) });
+        const b = mergeApiBooking(result);
+        state.manual = { ...state.manual, nama: '', hp: '', img: '', imgn: '', ok: false };
+        saveDB(state.db);
+        setMsg(`Booking manual ${b.k} berhasil dicatat (${b.st}).`);
+      } catch (error) { setMsg(error.message, 'e'); }
     }
 
     function renderAdminPortal() {
@@ -2594,7 +2672,7 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
 
       if (sc === 'o-beranda') {
         const w = REV_DATA.Mingguan;
-        const T = w.v.reduce((x, y) => x + y, 0);
+        const T = state.ownerReport?.pendapatan ?? w.v.reduce((x, y) => x + y, 0);
         const mx = Math.max(...w.v);
         const aktif = db.bk.filter((b) => b.st === 'Menunggu DP' || b.st === 'DP Terverifikasi');
         return `

@@ -11,6 +11,7 @@ Antarmuka web tersedia di halaman utama aplikasi (`/`) dan menggunakan endpoint 
 3. Jalankan `composer install`, `php artisan key:generate`, dan `php artisan migrate`.
 4. Jalankan API dengan `php artisan serve`.
 5. Jalankan pembatalan DP otomatis dengan `php artisan schedule:work`.
+6. Setelah pembaruan fitur, jalankan `php artisan migrate` untuk membuat tabel permohonan booking.
 
 ## Endpoint utama
 
@@ -18,7 +19,10 @@ Antarmuka web tersedia di halaman utama aplikasi (`/`) dan menggunakan endpoint 
 - `POST /api/booking`
 - `GET /api/booking/{kode}?no_hp=...`
 - `POST /api/booking/{kode}/bukti-dp`
+- `POST /api/booking/{kode}/permohonan` untuk pengajuan batal/pindah jadwal pelanggan.
 - `POST /api/login`
+- `GET /api/admin/booking` dan `POST /api/admin/booking` untuk operasional admin.
+- `GET /api/admin/permohonan` dan `PATCH /api/admin/permohonan/{id}/proses` untuk memproses pengajuan pelanggan.
 - Endpoint `/api/admin/*` memerlukan token Admin.
 - Endpoint `/api/pemilik/*` memerlukan token Pemilik.
 

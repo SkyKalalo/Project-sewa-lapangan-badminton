@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AdminBookingController;
 use App\Http\Controllers\Api\OwnerReportController;
 use App\Http\Controllers\Api\ScheduleController;
 use App\Http\Controllers\Api\CustomerController;
+use App\Http\Controllers\Api\BookingRequestController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', fn () => ['status' => 'ok']);
@@ -15,13 +16,18 @@ Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,
 Route::post('/booking', [BookingController::class, 'store'])->middleware('throttle:20,1');
 Route::get('/booking/{kode}', [BookingController::class, 'show']);
 Route::post('/booking/{kode}/bukti-dp', [PaymentController::class, 'upload'])->middleware('throttle:10,1');
+Route::post('/booking/{kode}/permohonan', [BookingRequestController::class, 'store'])->middleware('throttle:10,1');
 Route::middleware('role:Admin')->prefix('admin')->group(function () {
+    Route::get('/booking', [BookingController::class, 'adminIndex']);
+    Route::post('/booking', [BookingController::class, 'adminStore']);
     Route::get('/pembayaran', [PaymentController::class, 'pending']);
     Route::patch('/pembayaran/{id}/verifikasi', [PaymentController::class, 'verify']);
     Route::post('/booking/{kode}/pelunasan', [PaymentController::class, 'settle']);
     Route::post('/booking/{kode}/batal', [AdminBookingController::class, 'cancel']);
     Route::post('/booking/{kode}/pindah-jadwal', [AdminBookingController::class, 'reschedule']);
     Route::get('/pelanggan/{no_hp}/riwayat', [CustomerController::class, 'history']);
+    Route::get('/permohonan', [BookingRequestController::class, 'index']);
+    Route::patch('/permohonan/{id}/proses', [BookingRequestController::class, 'process']);
 });
 Route::middleware('role:Pemilik')->prefix('pemilik')->group(function () {
     Route::get('/laporan', [OwnerReportController::class, 'report']);

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Laporan Audit Komparasi Backend vs Frontend - GOR Smash</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 18mm 16mm; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #1e293b; margin: 0; padding: 0; }
+  h1 { font-size: 18pt; color: #0f172a; margin-bottom: 4px; border-bottom: 2px solid #0284c7; padding-bottom: 8px; }
+  h2 { font-size: 13pt; color: #0369a1; margin-top: 18px; margin-bottom: 8px; border-left: 4px solid #0284c7; padding-left: 8px; }
+  p { margin: 6px 0; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 9pt; font-weight: bold; background: #e0f2fe; color: #0369a1; }
+  .badge-danger { background: #fee2e2; color: #b91c1c; }
+  .badge-success { background: #dcfce7; color: #15803d; }
+  .meta-box { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; margin-bottom: 16px; font-size: 10pt; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 15px; font-size: 9.5pt; }
+  th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; vertical-align: top; }
+  th { background-color: #f1f5f9; color: #334155; font-weight: 600; }
+  tr:nth-child(even) { background-color: #f8fafc; }
+  .code { font-family: 'Consolas', monospace; font-size: 8.5pt; background: #f1f5f9; padding: 1px 4px; border-radius: 3px; color: #0f172a; }
+  ul { margin: 6px 0 12px 20px; padding: 0; }
+  li { margin-bottom: 4px; }
+  .footer { margin-top: 25px; border-top: 1px solid #cbd5e1; padding-top: 8px; font-size: 8.5pt; color: #64748b; text-align: center; }
+</style>
+</head>
+<body>
+<h1>Laporan Audit Komparasi Backend vs Frontend</h1>
+<div class="meta-box">
+  <strong>Proyek:</strong> GOR Smash (Sistem Penyewaan Lapangan Badminton)<br>
+  <strong>Lokasi:</strong> c:\Users\stavi\Downloads\GOR-Smash-backend-frontend-source\GOR-Smash-backend-frontend-source<br>
+  <strong>Status Validitas:</strong> <span class="badge badge-success">TERVERIFIKASI 100% AKURAT DARI KODE SUMBER</span><br>
+  <strong>Tanggal Audit:</strong> 16 November 2026
+</div>
+
+<h2>1. Ringkasan Eksekutif & Temuan Kritis</h2>
+<p>
+  Terdapat <strong>pemisahan total (disconnection)</strong> antara backend dan frontend:
+</p>
+<ul>
+  <li><strong>Frontend (<code>api/public/app.html</code>):</strong> Merupakan prototipe mandiri (offline mock) yang berjalan penuh di browser menggunakan <code>localStorage</code> (kunci: <code>gorsmash_v5</code>). Frontend sama sekali <strong>tidak memiliki kode <code>fetch()</code> atau <code>axios</code></strong> ke endpoint REST API backend.</li>
+  <li><strong>Backend (Laravel 13):</strong> Menyediakan 16 endpoint REST API di <code>routes/api.php</code> dengan basis data PostgreSQL/SQLite yang saat ini belum pernah terhubung atau menerima request dari frontend.</li>
+  <li><strong>Kontradiksi Dokumentasi:</strong> <code>api/README.md</code> menyebutkan bahwa web langsung menggunakan endpoint API yang sama, padahal kenyataannya frontend masih berupa mock data lokal.</li>
+</ul>
+
+<h2>2. Tabel Rincian Ketidaksesuaian Frontend vs Backend</h2>
+<table>
+  <thead>
+    <tr>
+      <th style="width: 20%;">Aspek / Kategori</th>
+      <th style="width: 35%;">Backend Laravel (Actual Code)</th>
+      <th style="width: 35%;">Frontend Web (app.html)</th>
+      <th style="width: 10%;">Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Integrasi & Penyimpanan</strong></td>
+      <td>REST API di <span class="code">routes/api.php</span> terhubung ke PostgreSQL/SQLite.</td>
+      <td>Penyimpanan browser di <span class="code">localStorage (gorsmash_v5)</span> baris 638, 1239-1253.</td>
+      <td><span class="badge badge-danger">Tidak Sesuai</span></td>
+    </tr>
+    <tr>
+      <td><strong>Autentikasi & Akun</strong></td>
+      <td>Token Bearer SHA-256 via <span class="code">api_tokens</span>. User: <code>admin</code>, <code>pemilik</code>.</td>
+      <td>Validasi plaintext lokal. User: <code>admin01</code>, <code>admin02</code>, <code>pemilik01</code>.</td>
+      <td><span class="badge badge-danger">Tidak Sesuai</span></td>
+    </tr>
+    <tr>
+      <td><strong>Jumlah Lapangan</strong></td>
+      <td>Hanya 3 lapangan (<span class="code">DatabaseSeeder.php</span> baris 16).</td>
+      <td>4 lapangan (<span class="code">app.html</span> baris 1060-1065, Lapangan 4 Nonaktif).</td>
+      <td><span class="badge badge-danger">Tidak Sesuai</span></td>
+    </tr>
+    <tr>
+      <td><strong>Format Kode Booking</strong></td>
+      <td><span class="code">BK-YYYYMMDD-XXX</span> (contoh: <code>BK-20261116-001</code>).</td>
+      <td><span class="code">BK-0123</span>, <code>BK-0124</code>.</td>
+      <td><span class="badge badge-danger">Tidak Sesuai</span></td>
+    </tr>
+    <tr>
+      <td><strong>Alur Batal & Reschedule</strong></td>
+      <td>Admin eksekusi langsung via API. Validasi 24 jam otomatis menentukan DP hangus.</td>
+      <td>Pelanggan mengajukan tiket request (<code>db.req</code>), admin menyetujui/menolak via UI.</td>
+      <td><span class="badge badge-danger">Beda Alur</span></td>
+    </tr>
+    <tr>
+      <td><strong>Format Bukti Transfer</strong></td>
+      <td>Hanya gambar (<span class="code">mimes:jpg,jpeg,png</span> maks 5MB di PaymentController).</td>
+      <td>Menerima gambar dan <strong>PDF</strong> (<span class="code">application/pdf</span>) di baris 934.</td>
+      <td><span class="badge badge-danger">Beda Validasi</span></td>
+    </tr>
+    <tr>
+      <td><strong>Laporan Pendapatan & Jam Sepi</strong></td>
+      <td>Dihitung dinamis dari agregasi database transaksi riil.</td>
+      <td>Hardcoded dummy statis (<span class="code">REV_DATA</span> dan heatmap <span class="code">HM_DATA</span>).</td>
+      <td><span class="badge badge-danger">Data Tiruan</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>3. Fitur Backend yang Belum Ada / Belum Dikonsumsi Frontend</h2>
+<ul>
+  <li><strong>Konsumsi Endpoint Transaksional:</strong> <code>GET /api/jadwal</code>, <code>POST /api/booking</code>, <code>POST /api/booking/{kode}/bukti-dp</code>, <code>GET /api/admin/pembayaran</code>, <code>POST /api/admin/booking/{kode}/pelunasan</code>.</li>
+  <li><strong>Health Check Endpoint (<code>GET /api/health</code>):</strong> Belum ada tampilan status koneksi backend di UI.</li>
+  <li><strong>Ringkasan Finansial CRM Pelanggan:</strong> Endpoint <code>GET /api/admin/pelanggan/{no_hp}/riwayat</code> mengembalikan agregasi total omset, frekuensi sewa, dan jumlah batal yang belum ditampilkan di UI admin.</li>
+  <li><strong>Monitoring Agregat Status Booking (<code>GET /api/pemilik/monitoring-booking</code>):</strong> Pengelompokan status otomatis dari backend belum dipakai.</li>
+</ul>
+
+<h2>4. Fitur Frontend yang Belum Didukung Backend</h2>
+<ul>
+  <li><strong>Sistem Pengajuan Tiket Permohonan (<code>db.req</code>):</strong> Menu permohonan batal atau reschedule oleh pelanggan via menu Cek Booking.</li>
+  <li><strong>Manajemen Master Metode Pembayaran oleh Pemilik (<code>o-bayar</code>):</strong> Fitur CRUD rekening bank, e-wallet, dan QRIS dinamis oleh pemilik.</li>
+  <li><strong>Layar Piutang & Trigger Auto-Cancel Manual (<code>o-piutang</code>):</strong> Tombol eksekusi auto-cancel 2 jam dari web. Di backend ini berjalan melalui artisan CLI schedule.</li>
+  <li><strong>Tabel Publik Booking Terbaru:</strong> Daftar 12 booking terakhir yang disamarkan nomor HP-nya di halaman Cek Booking.</li>
+</ul>
+
+<h2>5. Rekomendasi Solusi</h2>
+<ul>
+  <li><strong>Langkah 1:</strong> Ganti fungsi penyimpanan lokal <code>state.db</code> di <code>app.html</code> dengan fungsi <code>fetch('/api/...')</code> terpusat.</li>
+  <li><strong>Langkah 2:</strong> Simpan token bearer yang didapat dari <code>POST /api/login</code> ke dalam <code>sessionStorage</code> browser.</li>
+  <li><strong>Langkah 3:</strong> Sinkronkan master data seeder backend agar konsisten dengan frontend (misal menambahkan Lapangan 4).</li>
+  <li><strong>Langkah 4:</strong> Putuskan model permohonan pembatalan/reschedule: buatkan tabel permohonan di backend atau ubah UI frontend agar admin yang menginput perubahan langsung.</li>
+</ul>
+
+<div class="footer">
+  Dokumen Audit Teknis Sistem GOR Smash &bull; 16 November 2026
+</div>
+</body>
+</html>
