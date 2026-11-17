@@ -470,9 +470,6 @@ Check your Browserslist config to be sure that your targets are set up correctly
             Keluar
           </button>
 
-          <button type="button" onclick="resetDemo()" title="Reset data demo ke kondisi awal" class="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-indigo-100 text-xs font-bold cursor-pointer">
-            ↺
-          </button>
         </div>
       </div>
     </header>
@@ -485,7 +482,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
         <div class="space-y-9">
           <section class="grid grid-cols-1 lg:grid-cols-[1.55fr_1fr] gap-8 items-center">
             <div>
-              <div class="font-mono font-bold text-sm text-amber-300 tracking-wide">4 LAPANGAN VINYL BWF · LED 550 LUX · 07.00–23.00 WIB</div>
+              <div class="font-mono font-bold text-sm text-amber-300 tracking-wide">3 LAPANGAN VINYL BWF · LED 550 LUX · 07.00–23.00 WIB</div>
               <h1 class="text-3xl sm:text-5xl font-extrabold uppercase text-white leading-[1.08] tracking-tight my-4">
                 Booking Lapangan Badminton Manado Online
               </h1>
@@ -498,7 +495,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
                   <label class="block text-xs text-slate-400 font-medium mb-0.5">Lapangan</label>
                   <select onchange="state.gf.lap=+this.value" class="w-full bg-transparent font-mono font-semibold text-sm text-indigo-950 focus:outline-none cursor-pointer">
                     <option value="0" selected="">Semua (L1–L4)</option>
-                    <option value="1">Lapangan 1</option><option value="2">Lapangan 2</option><option value="3">Lapangan 3</option><option value="4" disabled="">Lapangan 4 (Tidak Tersedia)</option>
+                    <option value="1">Lapangan 1</option><option value="2">Lapangan 2</option><option value="3">Lapangan 3</option><option value="4">Lapangan 4</option>
                   </select>
                 </div>
                 <div class="flex-1 px-4 py-1.5 md:border-r border-slate-200">
@@ -693,44 +690,10 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
 
     const NOTES = {
-      'o-pendapatan': 'Data contoh periode sebelumnya (grafik belum terhitung otomatis dari transaksi booking).',
-      'o-jamsepi': 'Angka contoh tingkat kekosongan lapangan.',
+      'o-pendapatan': 'Data dihitung dari pembayaran terverifikasi dan booking pada database.',
+      'o-jamsepi': 'Data dihitung dari slot booking pada database.',
       'o-audit': 'Log baru dari aplikasi tercatat otomatis; sebagian entri lama adalah data contoh awal.',
     };
-
-    const REV_DATA = {
-      Harian: {
-        ti: 'GRAFIK PENDAPATAN HARI INI (10 NOV 2026) PER LAPANGAN',
-        lab: ['Lap 1', 'Lap 2', 'Lap 3', 'Lap 4'],
-        v: [180e3, 140e3, 120e3, 160e3],
-        n: [5, 4, 3, 4],
-        dl: '+6.1% dari kemarin',
-        rows: ['Lapangan 1', 'Lapangan 2', 'Lapangan 3', 'Lapangan 4'],
-      },
-      Mingguan: {
-        ti: 'GRAFIK PENDAPATAN PER HARI (PERIODE 3 – 9 NOV 2026)',
-        lab: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'],
-        v: [460e3, 340e3, 520e3, 400e3, 680e3, 860e3, 940e3],
-        n: [10, 8, 12, 9, 15, 18, 14],
-        dl: '+14.2% dari minggu lalu',
-        rows: ['3 Nov (Sen)', '4 Nov (Sel)', '5 Nov (Rab)', '6 Nov (Kam)', '7 Nov (Jum)', '8 Nov (Sab)', '9 Nov (Min)'],
-      },
-      Bulanan: {
-        ti: 'GRAFIK PENDAPATAN PER MINGGU (12 OKT – 8 NOV 2026)',
-        lab: ['Mg 1', 'Mg 2', 'Mg 3', 'Mg 4'],
-        v: [3.1e6, 3.6e6, 3.9e6, 4.2e6],
-        n: [64, 71, 78, 86],
-        dl: '+7.7% dari periode lalu',
-        rows: ['12–18 Okt', '19–25 Okt', '26 Okt–1 Nov', '2–8 Nov'],
-      },
-    };
-
-    const HM_DATA = [
-      [90, 90, 45, 20, 85, 70, 45, 20],
-      [90, 90, 20, 85, 70, 45, 20, 85],
-      [90, 90, 85, 70, 45, 20, 85, 70],
-      [90, 90, 70, 45, 20, 85, 70, 45],
-    ];
 
     // =========================================================================
     // 2. SHA-256 & UTILITAS UMUM
@@ -1066,6 +1029,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
           { id: 1, nama: 'Lapangan 1', st: 'Tersedia' },
           { id: 2, nama: 'Lapangan 2', st: 'Tersedia' },
           { id: 3, nama: 'Lapangan 3', st: 'Tersedia' },
+          { id: 4, nama: 'Lapangan 4', st: 'Tersedia' },
         ],
         tarif: [
           { id: 1, nama: 'Weekday Normal (Sen–Jum 07.00–17.00)', rp: 60000 },
@@ -1163,6 +1127,9 @@ Check your Browserslist config to be sure that your targets are set up correctly
         if (l.no === undefined) l.no = l.id;
         if (l.st !== 'Tersedia') l.st = 'Tidak Tersedia';
       });
+      if (!DB.lap.some((l) => Number(l.id) === 4)) {
+        DB.lap.push({ id: 4, nama: 'Lapangan 4', no: 4, st: 'Tersedia' });
+      }
       DB.user.forEach((u) => {
         if (!u.em) u.em = u.u + '@gorsmash.local';
         if (!u.ca) u.ca = now;
@@ -1422,6 +1389,7 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       auditFilter: 'Semua',
       newMethod: { jenis: 'Transfer Bank', nama: '', no: '', an: '' },
       ownerReport: null,
+      recentBookings: [],
     };
 
     function setMsg(m, t = '') {
@@ -1466,6 +1434,7 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       state.screen = target;
       render();
       if (target === 'c-jadwal') refreshPublicSchedule(state.gf.tgl);
+      if (target === 'a-ubah') refreshAdminData();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -1478,16 +1447,17 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       setMsg('Anda telah keluar dari Portal Staf.', 'i');
     }
 
-    function resetDemo() {
-      state.db = createSeedData();
-      saveDB(state.db);
-      state.gf = { tgl: D0, lap: 0, min: 7, dur: 2, onlyAvail: false };
-      state.form = { lap: 1, tgl: D0, jam: 9, dur: 2, nama: '', hp: '', err: '', done: null };
-      state.cekQuery = { t: '', hp: '', mt: 0 };
-      setMsg('Data demo telah dikembalikan ke kondisi awal.', 'i');
-    }
-
-    function runCron(auto) {
+    async function runCron(auto) {
+      if (apiToken && state.ses?.r === 'Admin') {
+        try {
+          const result = await apiRequest('/admin/booking/expire', { method: 'POST' });
+          if (!auto) setMsg(result.dibatalkan ? `${result.dibatalkan} booking kedaluwarsa dibatalkan.` : 'Tidak ada booking yang melewati batas waktu 2 jam.', result.dibatalkan ? '' : 'i');
+          else if (result.dibatalkan) refreshAdminData();
+          return;
+        } catch (error) {
+          if (!auto) return setMsg(error.message, 'e');
+        }
+      }
       const nowMs = Date.now();
       let count = 0;
       state.db.bk.forEach((b) => {
@@ -1504,58 +1474,6 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       } else if (count > 0) {
         render();
       }
-    }
-
-    function createBooking(nama, hp, lap, tgl, s, du, adm, ok) {
-      const db = state.db;
-      const nowIso = new Date().toISOString();
-      const digits = hp.replace(/\D/g, '');
-      let c = db.cust.find((x) => x.hp.replace(/\D/g, '') === digits);
-      if (c) {
-        c.nama = nama;
-        c.ua = nowIso;
-      } else {
-        c = { id: nid(db.cust), nama, hp, ca: nowIso, ua: nowIso };
-        db.cust.push(c);
-      }
-
-      const id = nid(db.bk);
-      const tot = calcCost(db, tgl, s, du);
-      const b = {
-        id,
-        k: `BK-${String(120 + id).padStart(4, '0')}`,
-        c: c.id,
-        st: ok ? 'DP Terverifikasi' : 'Menunggu DP',
-        tot,
-        exp: new Date(Date.now() + 72e5).toISOString(),
-        pg: 0,
-        hg: false,
-        adm: adm ? adm.id : null,
-        dibuat: nowIso,
-      };
-      db.bk.push(b);
-
-      const d = { id: nid(db.det), b: id, l: lap, t: tgl, s, e: s + du };
-      detTarif(db, d);
-      db.det.push(d);
-
-      if (ok) {
-        db.pay.push({
-          id: nid(db.pay),
-          b: id,
-          j: 'DP 50%',
-          n: tot / 2,
-          st: 'Terverifikasi',
-          m: 'Transfer Manual',
-          bk: null,
-          tgl: nowIso,
-          vb: adm ? adm.id : null,
-        });
-      }
-
-      appendLog(adm || 'Pelanggan', b, adm ? 'Catat Booking Manual' : 'Buat Booking Baru', `Lapangan ${lap}, ${tgl} ${hh(s)}–${hh(s + du)} (${du} jam), Total ${rp(tot)}`);
-      saveDB(db);
-      return b;
     }
 
     async function uploadProof(bookingId, inputEl) {
@@ -1581,6 +1499,7 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
         const formData = new FormData();
         formData.append('no_hp', getCustomer(db, b).hp);
         formData.append('bukti', file);
+        formData.append('metode_pembayaran', `${mt.jenis} ${mt.nama}`);
         await apiRequest(`/booking/${encodeURIComponent(b.k)}/bukti-dp`, { method: 'POST', body: formData });
       } catch (error) {
         return setMsg(error.message, 'e');
@@ -1603,10 +1522,10 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       if (b.pg >= 1) return setMsg('Jatah pindah jadwal (1 kali) sudah habis.', 'e');
       const d = getDetail(db, b);
       const nt = addDays(d.t, 1);
-      const cl = checkClash(db, d.l, nt, d.s, d.e, b.id);
-      if (cl) return setMsg(cl.past ? 'Jadwal baru sudah lewat.' : cl.off ? `${cl.k} tidak tersedia pada ${nt}.` : `Slot ${nt} ${hh(d.s)}–${hh(d.e)} bentrok dengan ${cl.k}.`, 'e');
       try {
-        await apiRequest(`/booking/${encodeURIComponent(b.k)}/permohonan`, { method: 'POST', body: JSON.stringify({ no_hp: getCustomer(db, b).hp, jenis: 'Pindah Jadwal', alasan: 'Permintaan pelanggan pindah jadwal (+1 hari)', id_lapangan_tujuan: d.l, tanggal_tujuan: nt, jam_tujuan: `${pad(d.s)}:00` }) });
+        const result = await apiRequest(`/booking/${encodeURIComponent(b.k)}/permohonan`, { method: 'POST', body: JSON.stringify({ no_hp: getCustomer(db, b).hp, jenis: 'Pindah Jadwal', alasan: 'Permintaan pelanggan pindah jadwal (+1 hari)', id_lapangan_tujuan: d.l, tanggal_tujuan: nt, jam_tujuan: `${pad(d.s)}:00` }) });
+        db.req.unshift({ id: result.id_permohonan, k: `REQ-${String(result.id_permohonan).padStart(2, '0')}`, b: b.id, j: 'Pindah Jadwal', al: 'Permintaan pelanggan pindah jadwal (+1 hari)', t: nt, l: d.l, s: d.s, e: d.e, st: 'Menunggu' });
+        saveDB(db);
         setMsg(`Permintaan pindah jadwal ke ${nt} ${hh(d.s)}–${hh(d.e)} dikirim ke admin.`, 'i');
       } catch (error) { setMsg(error.message, 'e'); }
     }
@@ -1618,7 +1537,9 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       const d = getDetail(db, b);
       const hr = (new Date(`${d.t}T${pad(d.s)}:00`).getTime() - NOW_SIM.getTime()) / 36e5;
       try {
-        await apiRequest(`/booking/${encodeURIComponent(b.k)}/permohonan`, { method: 'POST', body: JSON.stringify({ no_hp: getCustomer(db, b).hp, jenis: 'Pembatalan', alasan: `Pembatalan mandiri (${hr < 24 ? '< 24 jam, DP hangus' : '≥ 24 jam'})` }) });
+        const result = await apiRequest(`/booking/${encodeURIComponent(b.k)}/permohonan`, { method: 'POST', body: JSON.stringify({ no_hp: getCustomer(db, b).hp, jenis: 'Pembatalan', alasan: `Pembatalan mandiri (${hr < 24 ? '< 24 jam, DP hangus' : '≥ 24 jam'})` }) });
+        db.req.unshift({ id: result.id_permohonan, k: `REQ-${String(result.id_permohonan).padStart(2, '0')}`, b: b.id, j: 'Pembatalan', al: `Pembatalan mandiri (${hr < 24 ? '< 24 jam, DP hangus' : '≥ 24 jam'})`, st: 'Menunggu' });
+        saveDB(db);
         setMsg(`Permintaan pembatalan untuk ${b.k} berhasil dikirim.`, 'i');
       } catch (error) { setMsg(error.message, 'e'); }
     }
@@ -1690,7 +1611,7 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
         <div class="space-y-9">
           <section class="grid grid-cols-1 lg:grid-cols-[1.55fr_1fr] gap-8 items-center">
             <div>
-              <div class="font-mono font-bold text-sm text-amber-300 tracking-wide">4 LAPANGAN VINYL BWF · LED 550 LUX · 07.00–23.00 WIB</div>
+              <div class="font-mono font-bold text-sm text-amber-300 tracking-wide">3 LAPANGAN VINYL BWF · LED 550 LUX · 07.00–23.00 WIB</div>
               <h1 class="text-3xl sm:text-5xl font-extrabold uppercase text-white leading-[1.08] tracking-tight my-4">
                 Booking Lapangan Badminton Manado Online
               </h1>
@@ -2170,8 +2091,11 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       const mulai = `${new Date().getFullYear()}-01-01`;
       const selesai = D0;
       try {
-        const [report, monitoring] = await Promise.all([apiRequest(`/pemilik/laporan?mulai=${mulai}&selesai=${selesai}`), apiRequest('/pemilik/monitoring-booking')]);
-        state.ownerReport = { ...report, monitoring };
+        const [report, monitoring, bookings, quietHours, activities] = await Promise.all([apiRequest(`/pemilik/laporan?mulai=${mulai}&selesai=${selesai}`), apiRequest('/pemilik/monitoring-booking'), apiRequest('/pemilik/booking'), apiRequest(`/pemilik/laporan/jam-sepi?mulai=${mulai}&selesai=${selesai}`), apiRequest('/pemilik/aktivitas-admin')]);
+        bookings.forEach((row) => mergeApiBooking({ ...row, nama_pelanggan: row.nama, durasi: row.durasi || 1 }));
+        state.ownerReport = { ...report, monitoring, quietHours, activities };
+        state.db.log = activities.map((row) => ({ id: row.id_log, idb: row.id_booking, idu: row.id_pengguna, at: row.waktu_aktivitas, w: row.waktu_aktivitas, a: row.nama || 'Sistem', b: row.id_booking || '—', ak: row.aktivitas, dt: row.detail_aktivitas || '' }));
+        saveDB(state.db);
         render();
       } catch (error) { setMsg(`Laporan server belum dapat dimuat: ${error.message}`, 'e'); }
     }
@@ -2195,6 +2119,25 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       } catch { /* cache lokal tetap dipakai saat API belum tersedia */ }
     }
 
+    async function refreshPaymentMethods() {
+      try {
+        const rows = await apiRequest('/metode-pembayaran');
+        if (rows.length) {
+          state.db.metode = rows.map((m) => ({ id: m.id_metode, jenis: m.jenis, nama: m.nama, no: m.nomor, an: m.atas_nama, qr: m.qr_url || undefined }));
+          saveDB(state.db);
+          render();
+        }
+      } catch { /* cache lokal tetap dipakai saat API belum tersedia */ }
+    }
+
+    async function refreshRecentBookings() {
+      try {
+        const rows = await apiRequest('/booking-terbaru');
+        state.recentBookings = rows.map((row) => ({ k: row.kode_booking, nama: row.nama, l: row.id_lapangan, t: row.tanggal_main, s: Number(String(row.jam_mulai || '').slice(0, 2)), e: Number(String(row.jam_selesai || '').slice(0, 2)), st: row.status_booking }));
+        render();
+      } catch { /* cache lokal tetap dipakai saat API belum tersedia */ }
+    }
+
     function renderCustomerCek() {
       const db = state.db;
       const q = state.cekQuery;
@@ -2202,7 +2145,7 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       const dg = (q.hp || '').replace(/\D/g, '');
       const hit = code && dg.length > 5 ? db.bk.find((b) => b.k.toLowerCase() === code && getCustomer(db, b).hp.replace(/\D/g, '') === dg) : null;
       const matches = hit ? db.bk.filter((b) => b.c === hit.c).sort((a, b) => b.k.localeCompare(a.k)) : [];
-      const recentList = db.bk.slice().sort((a, b) => b.id - a.id).slice(0, 12);
+      const recentList = state.recentBookings;
 
       return `
         <div class="space-y-4">
@@ -2265,9 +2208,7 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
                 <tbody>
                   ${recentList
                     .map((b) => {
-                      const d = getDetail(db, b);
-                      const c = getCustomer(db, b);
-                      return `<tr onclick="state.cekQuery.t='${esc(b.k)}'; render()" class="border-t border-slate-100 hover:bg-teal-50/60 cursor-pointer"><td class="p-2.5 font-mono font-bold">${esc(b.k)}</td><td class="p-2.5 font-semibold">${esc(c.nama)}</td><td class="p-2.5 text-xs font-mono">Lapangan ${d.l} · ${d.t} · ${hh(d.s)}–${hh(d.e)}</td><td class="p-2.5 font-mono text-xs text-slate-500">${maskPhone(c.hp)}</td><td class="p-2.5">${badgeHtml(b.st === 'Dibatalkan' ? 'Dibatalkan' : 'Terjadwal', b.st === 'Dibatalkan' ? 'Dibatalkan' : 'Lunas')}</td></tr>`;
+                      return `<tr onclick="state.cekQuery.t='${esc(b.k)}'; render()" class="border-t border-slate-100 hover:bg-teal-50/60 cursor-pointer"><td class="p-2.5 font-mono font-bold">${esc(b.k)}</td><td class="p-2.5 font-semibold">${esc(b.nama)}</td><td class="p-2.5 text-xs font-mono">Lapangan ${b.l} · ${b.t} · ${hh(b.s)}–${hh(b.e)}</td><td class="p-2.5 font-mono text-xs text-slate-500">Privat</td><td class="p-2.5">${badgeHtml(b.st === 'Dibatalkan' ? 'Dibatalkan' : 'Terjadwal', b.st === 'Dibatalkan' ? 'Dibatalkan' : 'Lunas')}</td></tr>`;
                     })
                     .join('')}
                 </tbody>
@@ -2401,13 +2342,15 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       setMsg(`Pindah jadwal ${b.k} disetujui.`);
     }
 
-    function adminToggleLap(lapId) {
+    async function adminToggleLap(lapId) {
       const l = state.db.lap.find((x) => x.id === lapId);
       if (!l) return;
-      l.st = l.st === 'Tersedia' ? 'Tidak Tersedia' : 'Tersedia';
-      appendLog(state.ses, null, 'Ubah Status Lapangan', `${l.nama} → ${l.st}`);
-      saveDB(state.db);
-      setMsg(`${l.nama} kini berstatus: ${l.st}.`);
+      try {
+        const result = await apiRequest(`/admin/lapangan/${lapId}/status`, { method: 'PATCH' });
+        l.st = result.status === 'tersedia' ? 'Tersedia' : 'Tidak Tersedia';
+        saveDB(state.db);
+        setMsg(`${l.nama} kini berstatus: ${l.st}.`);
+      } catch (error) { setMsg(error.message, 'e'); }
     }
 
     async function saveManualAdminBooking() {
@@ -2648,22 +2591,27 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
     // =========================================================================
     // 7. PORTAL PEMILIK (8 LAYAR EKSEKUTIF + SKEMA ERD)
     // =========================================================================
-    function addMethodOwner() {
+    async function addMethodOwner() {
       const m = state.newMethod;
       if (!m.nama.trim() || m.no.replace(/\D/g, '').length < 6 || !m.an.trim()) {
         return setMsg('Nama, nomor rekening (min 6 digit), dan atas nama wajib diisi.', 'e');
       }
-      state.db.metode.push({ id: nid(state.db.metode), jenis: m.jenis, nama: m.nama.trim(), no: m.no.trim(), an: m.an.trim(), ...(m.jenis === 'QRIS' ? { qr: qrDemo() } : {}) });
-      appendLog(state.ses, null, 'Tambah Metode Pembayaran', `${m.jenis} ${m.nama}`);
-      state.newMethod = { jenis: 'Transfer Bank', nama: '', no: '', an: '' };
-      saveDB(state.db);
-      setMsg('Metode pembayaran berhasil ditambahkan.');
+      try {
+        const result = await apiRequest('/pemilik/metode-pembayaran', { method: 'POST', body: JSON.stringify({ jenis: m.jenis, nama: m.nama.trim(), nomor: m.no.trim(), atas_nama: m.an.trim(), qr_url: m.jenis === 'QRIS' ? qrDemo() : null }) });
+        state.db.metode.push({ id: result.id_metode, jenis: result.jenis, nama: result.nama, no: result.nomor, an: result.atas_nama, qr: result.qr_url });
+        state.newMethod = { jenis: 'Transfer Bank', nama: '', no: '', an: '' };
+        saveDB(state.db);
+        setMsg('Metode pembayaran berhasil ditambahkan.');
+      } catch (error) { setMsg(error.message, 'e'); }
     }
 
-    function deleteMethodOwner(id) {
-      state.db.metode = state.db.metode.filter((x) => x.id !== id);
-      saveDB(state.db);
-      setMsg('Metode pembayaran dihapus.', 'y');
+    async function deleteMethodOwner(id) {
+      try {
+        await apiRequest(`/pemilik/metode-pembayaran/${id}`, { method: 'DELETE' });
+        state.db.metode = state.db.metode.filter((x) => x.id !== id);
+        saveDB(state.db);
+        setMsg('Metode pembayaran dihapus.', 'y');
+      } catch (error) { setMsg(error.message, 'e'); }
     }
 
     function renderOwnerPortal() {
@@ -2671,9 +2619,9 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       const sc = state.screen;
 
       if (sc === 'o-beranda') {
-        const w = REV_DATA.Mingguan;
-        const T = state.ownerReport?.pendapatan ?? w.v.reduce((x, y) => x + y, 0);
-        const mx = Math.max(...w.v);
+        const daily = (state.ownerReport?.pendapatan_harian || []).slice(-7);
+        const T = state.ownerReport?.pendapatan ?? 0;
+        const mx = Math.max(1, ...daily.map((row) => Number(row.pendapatan)));
         const aktif = db.bk.filter((b) => b.st === 'Menunggu DP' || b.st === 'DP Terverifikasi');
         return `
           <div class="space-y-4">
@@ -2687,9 +2635,9 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
             <div class="bg-[#f4f4f9] rounded-[26px] p-5 shadow-md">
               <div class="flex justify-between mb-3"><h2 class="text-sm font-bold text-indigo-950">PENDAPATAN 7 HARI TERAKHIR</h2><b class="font-mono text-xs text-teal-700">Total: ${rp(T)}</b></div>
               <div class="flex items-end gap-3.5 h-52 border-b border-indigo-200 px-2">
-                ${w.v.map((v, i) => `<div title="${w.lab[i]}: ${rp(v)}" style="height:${Math.round((v / mx) * 100)}%" class="flex-1 rounded-t-lg bg-gradient-to-t from-indigo-700 to-teal-500"></div>`).join('')}
+                ${daily.length ? daily.map((row) => `<div title="${row.tanggal}: ${rp(row.pendapatan)}" style="height:${Math.round((Number(row.pendapatan) / mx) * 100)}%" class="flex-1 rounded-t-lg bg-gradient-to-t from-indigo-700 to-teal-500"></div>`).join('') : '<div class="w-full text-center text-sm text-slate-500 self-center">Belum ada pembayaran terverifikasi</div>'}
               </div>
-              <div class="flex gap-3.5 px-2 pt-2 text-xs font-bold text-slate-700">${w.lab.map((l) => `<span class="flex-1 text-center">${l}</span>`).join('')}</div>
+              <div class="flex gap-3.5 px-2 pt-2 text-xs font-bold text-slate-700">${daily.map((row) => `<span class="flex-1 text-center">${row.tanggal.slice(5)}</span>`).join('')}</div>
             </div>
           </div>
         `;
@@ -2714,16 +2662,14 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       }
 
       if (sc === 'o-pendapatan') {
-        const d = REV_DATA[state.revPeriod];
-        const T = d.v.reduce((a, b) => a + b, 0);
-        const mx = Math.max(...d.v);
+        const T = state.ownerReport?.pendapatan ?? 0;
+        const N = state.ownerReport?.jumlah_booking ?? 0;
         return `
           <div class="space-y-4">
-            <div class="flex justify-between items-center"><div class="text-white font-bold text-lg">Laporan Pendapatan</div><div class="flex bg-white rounded-xl p-1 gap-1">${['Harian', 'Mingguan', 'Bulanan'].map((p) => `<button type="button" onclick="state.revPeriod='${p}'; render()" class="px-3 py-1 rounded-lg text-xs font-bold cursor-pointer ${state.revPeriod === p ? 'bg-indigo-600 text-white' : 'text-slate-600'}">${p}</button>`).join('')}</div></div>
-            <div class="bg-[#f4f4f9] rounded-[26px] p-5 shadow-md">
-              <h2 class="text-sm font-bold text-indigo-950 mb-4">${d.ti} (${rp(T)})</h2>
-              <div class="flex items-end gap-3.5 h-52 border-b border-indigo-200 px-2">${d.v.map((v, i) => `<div style="height:${Math.round((v / mx) * 100)}%" title="${d.lab[i]}: ${rp(v)}" class="flex-1 rounded-t-lg bg-gradient-to-t from-indigo-700 to-teal-500"></div>`).join('')}</div>
-              <div class="flex gap-3.5 px-2 pt-2 text-xs font-bold">${d.lab.map((l) => `<span class="flex-1 text-center">${l}</span>`).join('')}</div>
+            <div class="text-white font-bold text-lg">Laporan Pendapatan Tahun Berjalan</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="bg-[#f4f4f9] rounded-[26px] p-6 shadow-md"><div class="text-xs text-slate-500">Pendapatan terverifikasi</div><div class="text-3xl font-mono font-bold text-teal-700 mt-2">${rp(T)}</div></div>
+              <div class="bg-[#f4f4f9] rounded-[26px] p-6 shadow-md"><div class="text-xs text-slate-500">Jumlah booking</div><div class="text-3xl font-mono font-bold text-indigo-700 mt-2">${N}</div></div>
             </div>
           </div>
         `;
@@ -2749,12 +2695,12 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       }
 
       if (sc === 'o-jamsepi') {
+        const quiet = state.ownerReport?.quietHours || [];
         return `
           <div class="bg-[#f4f4f9] rounded-[26px] overflow-x-auto shadow-md p-4">
-            <h2 class="text-sm font-bold text-indigo-950 mb-3">ANALISIS PERSENTASE SLOT KOSONG</h2>
-            <table class="w-full border-separate border-spacing-1 text-xs">
-              <thead><tr><th class="bg-[#0f2a35] text-white text-left px-3 py-2 rounded-lg">Lapangan</th>${[7, 9, 11, 13, 15, 17, 19, 21].map((h) => `<th class="bg-[#0f2a35] text-white font-mono px-2 py-2 rounded-lg">${pad(h)}.00</th>`).join('')}</tr></thead>
-              <tbody>${HM_DATA.map((row, idx) => `<tr><th class="text-left px-3 py-2 font-bold">Lapangan ${idx + 1}</th>${row.map((v) => `<td class="text-center font-mono font-bold rounded-lg h-10 ${v >= 70 ? 'bg-emerald-100 text-emerald-800' : v >= 40 ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'}">${v}%</td>`).join('')}</tr>`).join('')}</tbody>
+            <h2 class="text-sm font-bold text-indigo-950 mb-3">ANALISIS SLOT TERPESAN TAHUN BERJALAN</h2>
+            <table class="w-full text-sm border-collapse"><thead><tr class="bg-indigo-50 text-left text-xs"><th class="p-2.5">Lapangan</th><th class="p-2.5">Slot Terpesan</th></tr></thead>
+              <tbody>${quiet.map((row) => `<tr class="border-t border-slate-100"><td class="p-2.5 font-bold">${esc(row.nomor_lapangan)}</td><td class="p-2.5 font-mono">${row.slot_terpesan}</td></tr>`).join('')}</tbody>
             </table>
           </div>
         `;
@@ -2895,6 +2841,8 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
 
     // Boot & Cron Worker
     render();
+    refreshPaymentMethods();
+    refreshRecentBookings();
     setTimeout(() => runCron(true), 200);
     setInterval(() => runCron(true), 30000);
 

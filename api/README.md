@@ -18,11 +18,15 @@ Antarmuka web tersedia di halaman utama aplikasi (`/`) dan menggunakan endpoint 
 - `GET /api/jadwal?tanggal=YYYY-MM-DD`
 - `POST /api/booking`
 - `GET /api/booking/{kode}?no_hp=...`
+- `GET /api/booking-terbaru` untuk daftar booking publik terbaru tanpa membuka nomor HP.
 - `POST /api/booking/{kode}/bukti-dp`
 - `POST /api/booking/{kode}/permohonan` untuk pengajuan batal/pindah jadwal pelanggan.
+- `GET /api/metode-pembayaran` untuk metode DP publik.
 - `POST /api/login`
 - `GET /api/admin/booking` dan `POST /api/admin/booking` untuk operasional admin.
 - `GET /api/admin/permohonan` dan `PATCH /api/admin/permohonan/{id}/proses` untuk memproses pengajuan pelanggan.
+- `PATCH /api/admin/lapangan/{id}/status` dan `POST /api/admin/booking/expire` untuk operasional lapangan.
+- `POST/DELETE /api/pemilik/metode-pembayaran` untuk mengelola metode pembayaran.
 - Endpoint `/api/admin/*` memerlukan token Admin.
 - Endpoint `/api/pemilik/*` memerlukan token Pemilik.
 

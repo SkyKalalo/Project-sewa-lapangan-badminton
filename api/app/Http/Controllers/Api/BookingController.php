@@ -8,6 +8,12 @@ use Illuminate\Http\Request;
 
 class BookingController extends Controller
 {
+    public function recent()
+    {
+        $summary = \DB::table('detail_booking')->selectRaw('id_booking, MIN(id_lapangan) as id_lapangan, MIN(tanggal_main) as tanggal_main, MIN(jam_mulai) as jam_mulai, MAX(jam_selesai) as jam_selesai')->groupBy('id_booking');
+        return \DB::table('booking as b')->join('pelanggan as c', 'c.id_pelanggan', '=', 'b.id_pelanggan')->leftJoinSub($summary, 'd', 'd.id_booking', '=', 'b.id_booking')->select('b.kode_booking', 'b.status_booking', 'c.nama', 'd.id_lapangan', 'd.tanggal_main', 'd.jam_mulai', 'd.jam_selesai')->orderByDesc('b.id_booking')->limit(12)->get();
+    }
+
     public function adminStore(Request $request, BookingService $bookings)
     {
         $data = $request->validate(['nama_pelanggan' => 'required|string|max:100', 'no_hp' => 'required|string|max:20', 'id_lapangan' => 'required|integer', 'tanggal_main' => 'required|date', 'jam_mulai' => 'required|date_format:H:i', 'durasi' => 'required|integer|min:1', 'dp_terverifikasi' => 'boolean']);
@@ -25,8 +31,9 @@ class BookingController extends Controller
 
     public function adminIndex()
     {
+        $detailSummary = \DB::table('detail_booking')->selectRaw('id_booking, MIN(id_lapangan) as id_lapangan, MIN(tanggal_main) as tanggal_main, MIN(jam_mulai) as jam_mulai, MAX(jam_selesai) as jam_selesai, SUM(durasi) as durasi')->groupBy('id_booking');
         return \DB::table('booking as b')->join('pelanggan as c', 'c.id_pelanggan', '=', 'b.id_pelanggan')
-            ->leftJoin('detail_booking as d', 'd.id_booking', '=', 'b.id_booking')
+            ->leftJoinSub($detailSummary, 'd', 'd.id_booking', '=', 'b.id_booking')
             ->select('b.*', 'c.nama', 'c.no_hp', 'd.id_lapangan', 'd.tanggal_main', 'd.jam_mulai', 'd.jam_selesai', 'd.durasi')
             ->orderByDesc('b.id_booking')->get();
     }
@@ -38,13 +45,14 @@ class BookingController extends Controller
             ->where('kode_booking', $kode)->where('no_hp', $request->query('no_hp'))
             ->select('booking.*', 'pelanggan.nama', 'pelanggan.no_hp')->first();
         abort_unless($booking, 404);
-        $detail = \DB::table('detail_booking')->where('id_booking', $booking->id_booking)->orderBy('jam_mulai')->first();
+        $details = \DB::table('detail_booking')->where('id_booking', $booking->id_booking)->orderBy('jam_mulai')->get();
+        $detail = $details->first();
         return response()->json(array_merge((array) $booking, $detail ? [
             'id_lapangan' => $detail->id_lapangan,
             'tanggal_main' => $detail->tanggal_main,
             'jam_mulai' => $detail->jam_mulai,
-            'jam_selesai' => $detail->jam_selesai,
-            'durasi' => $detail->durasi,
+            'jam_selesai' => $details->last()->jam_selesai,
+            'durasi' => $details->sum('durasi'),
         ] : []));
     }
 }
