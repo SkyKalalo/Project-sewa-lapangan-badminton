@@ -1,0 +1,46 @@
+services:
+  - type: web
+    name: gor-smash-demo
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./api/Dockerfile.render
+    dockerContext: ./api
+    healthCheckPath: /api/health
+    envVars:
+      - key: APP_NAME
+        value: GOR Smash Demo
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_KEY
+        generateValue: true
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_URL
+        fromDatabase:
+          name: gor-smash-demo-db
+          property: connectionString
+      - key: SESSION_DRIVER
+        value: file
+      - key: CACHE_STORE
+        value: file
+      - key: QUEUE_CONNECTION
+        value: sync
+      - key: FILESYSTEM_DISK
+        value: public
+      - key: SEED_ADMIN_PASSWORD
+        generateValue: true
+      - key: SEED_OWNER_PASSWORD
+        generateValue: true
+
+databases:
+  - name: gor-smash-demo-db
+    databaseName: gor_smash_demo
+    user: gor_smash_demo
+    plan: free
+    region: singapore
+    ipAllowList: []
