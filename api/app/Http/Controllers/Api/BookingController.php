@@ -10,8 +10,11 @@ class BookingController extends Controller
 {
     public function recent()
     {
-        $summary = \DB::table('detail_booking')->selectRaw('id_booking, MIN(id_lapangan) as id_lapangan, MIN(tanggal_main) as tanggal_main, MIN(jam_mulai) as jam_mulai, MAX(jam_selesai) as jam_selesai')->groupBy('id_booking');
-        return \DB::table('booking as b')->join('pelanggan as c', 'c.id_pelanggan', '=', 'b.id_pelanggan')->leftJoinSub($summary, 'd', 'd.id_booking', '=', 'b.id_booking')->select('b.kode_booking', 'b.status_booking', 'c.nama', 'd.id_lapangan', 'd.tanggal_main', 'd.jam_mulai', 'd.jam_selesai')->orderByDesc('b.id_booking')->limit(12)->get();
+        $perCourt = \DB::table('detail_booking')->selectRaw('id_booking, id_lapangan, MIN(tanggal_main) as tanggal_main, MIN(jam_mulai) as jam_mulai, MAX(jam_selesai) as jam_selesai, SUM(durasi) as durasi')->groupBy('id_booking', 'id_lapangan');
+        $summary = \DB::query()->fromSub($perCourt, 'pc')->selectRaw('id_booking, MIN(id_lapangan) as id_lapangan, MIN(tanggal_main) as tanggal_main, MIN(jam_mulai) as jam_mulai, MAX(jam_selesai) as jam_selesai, MAX(durasi) as durasi')->groupBy('id_booking');
+        $rows = \DB::table('booking as b')->join('pelanggan as c', 'c.id_pelanggan', '=', 'b.id_pelanggan')->leftJoinSub($summary, 'd', 'd.id_booking', '=', 'b.id_booking')->select('b.id_booking', 'b.kode_booking', 'b.status_booking', 'c.nama', 'd.id_lapangan', 'd.tanggal_main', 'd.jam_mulai', 'd.jam_selesai')->orderByDesc('b.id_booking')->limit(12)->get();
+        $courts = \DB::table('detail_booking')->whereIn('id_booking', $rows->pluck('id_booking'))->get(['id_booking', 'id_lapangan'])->groupBy('id_booking');
+        return $rows->map(function ($row) use ($courts) { $row->id_lapangans = ($courts[$row->id_booking] ?? collect())->pluck('id_lapangan')->unique()->values(); return $row; });
     }
 
     public function adminStore(Request $request, BookingService $bookings)
@@ -31,14 +34,27 @@ class BookingController extends Controller
 
     public function adminIndex()
     {
-        $detailSummary = \DB::table('detail_booking')->selectRaw('id_booking, MIN(id_lapangan) as id_lapangan, MIN(tanggal_main) as tanggal_main, MIN(jam_mulai) as jam_mulai, MAX(jam_selesai) as jam_selesai, SUM(durasi) as durasi')->groupBy('id_booking');
-        return \DB::table('booking as b')->join('pelanggan as c', 'c.id_pelanggan', '=', 'b.id_pelanggan')
+        $perCourt = \DB::table('detail_booking')->selectRaw('id_booking, id_lapangan, MIN(tanggal_main) as tanggal_main, MIN(jam_mulai) as jam_mulai, MAX(jam_selesai) as jam_selesai, SUM(durasi) as durasi')->groupBy('id_booking', 'id_lapangan');
+        $detailSummary = \DB::query()->fromSub($perCourt, 'pc')->selectRaw('id_booking, MIN(id_lapangan) as id_lapangan, MIN(tanggal_main) as tanggal_main, MIN(jam_mulai) as jam_mulai, MAX(jam_selesai) as jam_selesai, MAX(durasi) as durasi')->groupBy('id_booking');
+        $rows = \DB::table('booking as b')->join('pelanggan as c', 'c.id_pelanggan', '=', 'b.id_pelanggan')
             ->leftJoinSub($detailSummary, 'd', 'd.id_booking', '=', 'b.id_booking')
             ->select('b.*', 'c.nama', 'c.no_hp', 'd.id_lapangan', 'd.tanggal_main', 'd.jam_mulai', 'd.jam_selesai', 'd.durasi')
             ->orderByDesc('b.id_booking')->get();
+        $courts = \DB::table('detail_booking')->whereIn('id_booking', $rows->pluck('id_booking'))->get(['id_booking', 'id_lapangan'])->groupBy('id_booking');
+        return $rows->map(function ($row) use ($courts) { $row->id_lapangans = ($courts[$row->id_booking] ?? collect())->pluck('id_lapangan')->unique()->values(); return $row; });
     }
 
-    public function store(Request $request, BookingService $bookings) { $data=$request->validate(['nama_pelanggan'=>'required|string|max:100','no_hp'=>'required|string|max:20','id_lapangan'=>'required|integer','tanggal_main'=>'required|date','jam_mulai'=>'required|date_format:H:i','durasi'=>'required|integer|min:1']); return response()->json($bookings->create($data),201); }
+    public function store(Request $request, BookingService $bookings)
+    {
+        $data = $request->validate([
+            'nama_pelanggan' => 'required|string|max:100', 'no_hp' => 'required|string|max:20',
+            'id_lapangan' => 'required_without:id_lapangans|integer',
+            'id_lapangans' => 'required_without:id_lapangan|array|min:1|max:4',
+            'id_lapangans.*' => 'required|integer|distinct',
+            'tanggal_main' => 'required|date', 'jam_mulai' => 'required|date_format:H:i', 'durasi' => 'required|integer|min:1|max:4',
+        ]);
+        return response()->json($bookings->create($data), 201);
+    }
     public function show(string $kode, Request $request)
     {
         $booking = \DB::table('booking')->join('pelanggan', 'pelanggan.id_pelanggan', '=', 'booking.id_pelanggan')
@@ -52,7 +68,8 @@ class BookingController extends Controller
             'tanggal_main' => $detail->tanggal_main,
             'jam_mulai' => $detail->jam_mulai,
             'jam_selesai' => $details->last()->jam_selesai,
-            'durasi' => $details->sum('durasi'),
+            'durasi' => $details->groupBy('id_lapangan')->map(fn ($rows) => $rows->sum('durasi'))->max(),
+            'id_lapangans' => $details->pluck('id_lapangan')->unique()->values(),
         ] : []));
     }
 }

@@ -10,13 +10,14 @@ class PaymentMethodController extends Controller
 {
     public function index()
     {
-        return DB::table('metode_pembayaran')->orderBy('id_metode')->get();
+        return DB::table('metode_pembayaran')->where('jenis', 'Transfer Bank')->orderBy('id_metode')->get();
     }
 
     public function store(Request $request)
     {
-        $data = $request->validate(['jenis' => 'required|in:Transfer Bank,E-Wallet,QRIS', 'nama' => 'required|string|max:100', 'nomor' => 'required|string|max:100', 'atas_nama' => 'required|string|max:100', 'qr_url' => 'nullable|string']);
-        $id = DB::table('metode_pembayaran')->insertGetId($data + ['created_at' => now(), 'updated_at' => now()]);
+        $data = $request->validate(['jenis' => 'required|in:Transfer Bank', 'nama' => 'required|string|max:100', 'nomor' => 'required|string|max:100', 'atas_nama' => 'required|string|max:100', 'qr_url' => 'nullable|string']);
+        $data['qr_url'] = null;
+        $id = DB::table('metode_pembayaran')->insertGetId($data + ['created_at' => now(), 'updated_at' => now()], 'id_metode');
         return response()->json(DB::table('metode_pembayaran')->where('id_metode', $id)->first(), 201);
     }
 

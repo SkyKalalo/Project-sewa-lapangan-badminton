@@ -31,7 +31,7 @@ class BookingRequestController extends Controller
             'tanggal_tujuan' => $data['tanggal_tujuan'] ?? null,
             'jam_tujuan' => $data['jam_tujuan'] ?? null,
             'created_at' => now(), 'updated_at' => now(),
-        ]);
+        ], 'id_permohonan');
         return response()->json(['id_permohonan' => $id, 'status' => 'Menunggu'], 201);
     }
 
