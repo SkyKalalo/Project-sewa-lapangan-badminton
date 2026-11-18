@@ -693,7 +693,6 @@ Check your Browserslist config to be sure that your targets are set up correctly
         ['o-jamsepi', 'Jam Sepi'],
         ['o-piutang', 'Piutang'],
         ['o-audit', 'Audit Trail'],
-        ['o-erd', 'Skema ERD'],
       ],
     };
 
@@ -895,7 +894,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     }
 
     function detTarif(db, d) {
-      const x = tfHour(db, d.t, d.s);
+      const x = tfHour(db, d.t, d.s) || (isWe(d.t) ? db.tarif[2] : d.s >= 17 ? db.tarif[1] : db.tarif[0]);
       d.tid = x ? x.id : null;
       d.tsb = x ? x.rp : getRate(db, d.t, d.s);
       d.rc = Array.from({ length: d.e - d.s }, (_, i) => getRate(db, d.t, d.s + i));
@@ -1165,7 +1164,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       });
       DB.det.forEach((d) => {
         if (!d.id) d.id = nid(DB.det);
-        if (d.tid === undefined) detTarif(DB, d);
+        if (!d.tid || !DB.tarif.some((t) => t.id === d.tid)) detTarif(DB, d);
       });
       DB.pay.forEach((p) => {
         if (!p.id) p.id = nid(DB.pay);
@@ -1452,6 +1451,7 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
         window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
       }
+      if (target === 'o-erd') target = 'o-beranda';
       state.loginError = '';
       state.fb = null;
       if (state.screen !== target) history.pushState({ screen: target }, '', `#${target}`);
