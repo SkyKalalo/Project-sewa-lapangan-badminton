@@ -476,7 +476,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
 
     <!-- ==================== MAIN CONTENT ==================== -->
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-4">
-      <div class="rounded-2xl px-4 py-3 bg-amber-50 border border-amber-300 text-amber-950 text-sm font-semibold" role="note">
+      <div id="demo-banner" class="rounded-2xl px-4 py-3 bg-amber-50 border border-amber-300 text-amber-950 text-sm font-semibold" role="note">
         DEMO: gunakan data fiktif saja. Jangan masukkan nomor HP atau bukti transfer nyata; data demo dapat direset.
       </div>
       <div id="note-banner" class="hidden rounded-2xl px-4 py-3 bg-[#0f1429]/85 border border-indigo-400/35 text-indigo-100 text-xs flex items-center gap-2"></div>
@@ -2791,6 +2791,9 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
     // =========================================================================
     function render() {
       const portalRole = state.screen.startsWith('a-') ? 'admin' : state.screen.startsWith('o-') ? 'owner' : 'customer';
+
+      const demoBanner = document.getElementById('demo-banner');
+      if (demoBanner) demoBanner.classList.toggle('hidden', state.screen === 'c-beranda');
 
       // Center Nav
       const navEl = document.getElementById('main-nav');
