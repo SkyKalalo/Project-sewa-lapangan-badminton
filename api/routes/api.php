@@ -34,6 +34,7 @@ Route::middleware('role:Admin')->prefix('admin')->group(function () {
     Route::patch('/permohonan/{id}/proses', [BookingRequestController::class, 'process']);
     Route::patch('/lapangan/{id}/status', [AdminOperationsController::class, 'toggleCourt']);
     Route::post('/booking/expire', [AdminOperationsController::class, 'expireBookings']);
+    Route::post('/demo/reset', [AdminOperationsController::class, 'resetDemo']);
 });
 Route::middleware('role:Pemilik')->prefix('pemilik')->group(function () {
     Route::get('/laporan', [OwnerReportController::class, 'report']);

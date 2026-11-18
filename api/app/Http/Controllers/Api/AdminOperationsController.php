@@ -28,4 +28,52 @@ class AdminOperationsController extends Controller
         }
         return ['dibatalkan' => $bookings->count()];
     }
+
+    /**
+     * Remove only clearly labelled test/demo bookings. Master data, staff,
+     * courts, tariffs, and payment methods are intentionally preserved.
+     */
+    public function resetDemo(Request $request)
+    {
+        abort_unless($request->input('confirmation') === 'RESET-DEMO', 422, 'Ketik RESET-DEMO untuk mengonfirmasi pembersihan data demo.');
+
+        return DB::transaction(function () use ($request) {
+            $demoCustomers = DB::table('pelanggan')
+                ->where(function ($q) {
+                    foreach (['PENGUJIAN', 'TEST', 'DEMO', 'DUMMY', 'UJI'] as $prefix) {
+                        $q->orWhere('nama', 'like', $prefix . '%');
+                    }
+                })
+                ->pluck('id_pelanggan');
+
+            $demoBookings = DB::table('booking')
+                ->whereIn('id_pelanggan', $demoCustomers)
+                ->orWhere(function ($q) {
+                    $q->where('kode_booking', 'like', '%DEMO%')
+                        ->orWhere('kode_booking', 'like', '%TEST%')
+                        ->orWhere('kode_booking', 'like', '%UJI%');
+                })
+                ->pluck('id_booking');
+
+            $deleted = [
+                'permohonan' => DB::table('permohonan_booking')->whereIn('id_booking', $demoBookings)->delete(),
+                'pembayaran' => DB::table('pembayaran')->whereIn('id_booking', $demoBookings)->delete(),
+                'detail_booking' => DB::table('detail_booking')->whereIn('id_booking', $demoBookings)->delete(),
+                'log_aktivitas' => DB::table('log_aktivitas')->whereIn('id_booking', $demoBookings)->delete(),
+                'booking' => DB::table('booking')->whereIn('id_booking', $demoBookings)->delete(),
+                'pelanggan' => DB::table('pelanggan')->whereIn('id_pelanggan', $demoCustomers)->whereNotExists(function ($q) {
+                    $q->selectRaw('1')->from('booking')->whereColumn('booking.id_pelanggan', 'pelanggan.id_pelanggan');
+                })->delete(),
+            ];
+
+            DB::table('log_aktivitas')->insert([
+                'id_pengguna' => $request->attributes->get('pengguna')->id_pengguna,
+                'aktivitas' => 'Bersihkan data demo',
+                'detail_aktivitas' => 'Data booking berlabel PENGUJIAN/TEST/DEMO/DUMMY/UJI dihapus.',
+                'waktu_aktivitas' => now(),
+            ]);
+
+            return ['status' => 'ok', 'dihapus' => $deleted];
+        });
+    }
 }

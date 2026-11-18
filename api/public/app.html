@@ -1299,11 +1299,6 @@ Check your Browserslist config to be sure that your targets are set up correctly
             if (!T.detail_booking.some((d) => d.id_booking === r.id_booking)) bad.push(`booking ${r.kode_booking} belum punya rincian`);
           });
         }
-        if (n === 'pelanggan') {
-          rows.forEach((r) => {
-            if (!T.booking.some((b) => b.id_pelanggan === r.id_pelanggan)) bad.push(`pelanggan ${r.nama} belum punya booking`);
-          });
-        }
         out.push({ n, rows: rows.length, cols: Object.keys(rows[0] || {}), bad });
       }
       return out;
@@ -1359,7 +1354,11 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       if (options.body && !(options.body instanceof FormData) && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
       const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
       const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.message || Object.values(body.errors || {}).flat()[0] || 'Permintaan ke server gagal.');
+      if (!response.ok) {
+        const error = new Error(body.message || Object.values(body.errors || {}).flat()[0] || 'Permintaan ke server gagal.');
+        error.status = response.status;
+        throw error;
+      }
       return body;
     }
 
@@ -1375,7 +1374,11 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
         const courts = result.id_lapangans || [result.id_lapangan];
         const start = Number(String(result.jam_mulai).slice(0, 2));
         const end = start + Number(result.durasi || 1);
-        courts.forEach((courtId) => state.db.det.push({ id: nid(state.db.det), b: booking.id, l: courtId, t: result.tanggal_main, s: start, e: end }));
+        courts.forEach((courtId) => {
+          const detail = { id: nid(state.db.det), b: booking.id, l: courtId, t: result.tanggal_main, s: start, e: end };
+          detTarif(state.db, detail);
+          state.db.det.push(detail);
+        });
       }
       return booking;
     }
@@ -2097,7 +2100,12 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
         mergeApiBooking(remote);
         saveDB(state.db);
         render();
-      } catch (error) { setMsg(error.message || 'Booking tidak ditemukan.', 'e'); }
+      } catch (error) {
+        if (error.status === 404) {
+          state.fb = null;
+          render();
+        } else setMsg(error.message || 'Booking tidak ditemukan.', 'e');
+      }
     }
 
     async function refreshAdminData() {
@@ -2379,6 +2387,22 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       } catch (error) { setMsg(error.message, 'e'); }
     }
 
+    async function adminResetDemo() {
+      const confirmation = window.prompt('Untuk menghapus booking demo, ketik RESET-DEMO. Data berlabel PENGUJIAN/TEST/DEMO/DUMMY/UJI akan dihapus.');
+      if (confirmation !== 'RESET-DEMO') return;
+      try {
+        const result = await apiRequest('/admin/demo/reset', { method: 'POST', body: JSON.stringify({ confirmation }) });
+        state.db.bk = state.db.bk.filter((b) => !/^(PENGUJIAN|TEST|DEMO|DUMMY|UJI)/i.test(getCustomer(state.db, b).nama) && !/(DEMO|TEST|UJI)/i.test(b.k));
+        state.db.det = state.db.det.filter((d) => state.db.bk.some((b) => b.id === d.b));
+        state.db.pay = state.db.pay.filter((p) => state.db.bk.some((b) => b.id === p.b));
+        state.db.req = state.db.req.filter((r) => state.db.bk.some((b) => b.id === r.b));
+        state.db.cust = state.db.cust.filter((c) => state.db.bk.some((b) => b.c === c.id) || !/^(PENGUJIAN|TEST|DEMO|DUMMY|UJI)/i.test(c.nama));
+        saveDB(state.db);
+        await refreshAdminData();
+        setMsg(`Data demo dibersihkan: ${result.dihapus?.booking || 0} booking dihapus.`, 'i');
+      } catch (error) { setMsg(error.message || 'Data demo gagal dibersihkan.', 'e'); }
+    }
+
     async function saveManualAdminBooking() {
       const m = state.manual;
       const endHour = m.s + m.du;
@@ -2403,7 +2427,7 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
         const hariIni = db.bk.filter((b) => b.st !== 'Dibatalkan' && getDetail(db, b).t === D0).sort((a, b) => getDetail(db, a).s - getDetail(db, b).s);
         return `
           <div class="space-y-4">
-            <div><h1 class="text-2xl font-extrabold text-white">Beranda Admin</h1><p class="text-indigo-200 text-sm">Halo, ${esc(state.ses.nama)}. Ringkasan tugas operasional hari ini (${D0}).</p></div>
+            <div class="flex flex-wrap items-start justify-between gap-3"><div><h1 class="text-2xl font-extrabold text-white">Beranda Admin</h1><p class="text-indigo-200 text-sm">Halo, ${esc(state.ses.nama)}. Ringkasan tugas operasional hari ini (${D0}).</p></div><button type="button" onclick="adminResetDemo()" class="px-3.5 py-2 rounded-xl bg-rose-100 text-rose-800 border border-rose-200 text-xs font-bold cursor-pointer">Bersihkan Data Demo</button></div>
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <div onclick="go('a-dp')" class="bg-[#f4f4f9] rounded-[22px] p-4 shadow-md cursor-pointer"><span class="text-xs text-slate-500">Bukti DP Perlu Dicek</span><b class="block text-3xl font-mono text-amber-600 mt-1">${db.bk.filter((b) => !!getPendingPay(db, b)).length}</b></div>
               <div onclick="go('a-ubah')" class="bg-[#f4f4f9] rounded-[22px] p-4 shadow-md cursor-pointer"><span class="text-xs text-slate-500">Permintaan Pindah/Batal</span><b class="block text-3xl font-mono text-rose-600 mt-1">${db.req.filter((r) => r.st === 'Menunggu').length}</b></div>
