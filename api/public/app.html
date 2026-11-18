@@ -1305,14 +1305,14 @@ Check your Browserslist config to be sure that your targets are set up correctly
     }
 
     const ERDDDL = `-- Skema sesuai ERD GOR Smash.
-CREATE TABLE lapangan (id_lapangan INTEGER PRIMARY KEY, nomor_lapangan VARCHAR(10) NOT NULL UNIQUE, status VARCHAR(20) NOT NULL);
-CREATE TABLE tarif (id_tarif INTEGER PRIMARY KEY, jenis_periode VARCHAR(50) NOT NULL, tarif_per_jam DECIMAL(12,2) NOT NULL, hari_berlaku VARCHAR(50) NOT NULL, jam_mulai TIME NOT NULL, jam_selesai TIME NOT NULL);
+CREATE TABLE lapangan (id_lapangan INTEGER PRIMARY KEY, nomor_lapangan VARCHAR(30) NOT NULL UNIQUE, status VARCHAR(30) NOT NULL);
+CREATE TABLE tarif (id_tarif INTEGER PRIMARY KEY, jenis_periode VARCHAR(100) NOT NULL, tarif_per_jam DECIMAL(12,2) NOT NULL, hari_berlaku VARCHAR(50) NOT NULL, jam_mulai TIME NOT NULL, jam_selesai TIME NOT NULL);
 CREATE TABLE pelanggan (id_pelanggan INTEGER PRIMARY KEY, nama VARCHAR(100) NOT NULL, no_hp VARCHAR(20) NOT NULL UNIQUE, created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL);
 CREATE TABLE pengguna (id_pengguna INTEGER PRIMARY KEY, nama VARCHAR(100) NOT NULL, username VARCHAR(50) NOT NULL UNIQUE, email VARCHAR(100) NOT NULL UNIQUE, password_hash VARCHAR(255) NOT NULL, role VARCHAR(20) NOT NULL, created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL);
-CREATE TABLE booking (id_booking INTEGER PRIMARY KEY, kode_booking VARCHAR(20) NOT NULL UNIQUE, tanggal_booking TIMESTAMP NOT NULL, waktu_dibuat TIMESTAMP NOT NULL, status_booking VARCHAR(30) NOT NULL, total_biaya DECIMAL(12,2) NOT NULL, id_pelanggan INTEGER NOT NULL, id_admin INTEGER, batas_waktu_dp TIMESTAMP NOT NULL, jumlah_pindah_jadwal SMALLINT NOT NULL DEFAULT 0, dp_hangus BOOLEAN NOT NULL DEFAULT FALSE);
+CREATE TABLE booking (id_booking INTEGER PRIMARY KEY, kode_booking VARCHAR(25) NOT NULL UNIQUE, tanggal_booking TIMESTAMP NOT NULL, waktu_dibuat TIMESTAMP NOT NULL, status_booking VARCHAR(30) NOT NULL, total_biaya DECIMAL(12,2) NOT NULL, id_pelanggan INTEGER NOT NULL, id_admin INTEGER, batas_waktu_dp TIMESTAMP NOT NULL, jumlah_pindah_jadwal SMALLINT NOT NULL DEFAULT 0, dp_hangus BOOLEAN NOT NULL DEFAULT FALSE);
 CREATE TABLE detail_booking (id_detail INTEGER PRIMARY KEY, id_booking INTEGER NOT NULL, id_lapangan INTEGER NOT NULL, id_tarif INTEGER NOT NULL, tanggal_main DATE NOT NULL, jam_mulai TIME NOT NULL, jam_selesai TIME NOT NULL, durasi INTEGER NOT NULL, tarif_saat_booking DECIMAL(12,2) NOT NULL);
-CREATE TABLE pembayaran (id_pembayaran INTEGER PRIMARY KEY, id_booking INTEGER NOT NULL, jenis_pembayaran VARCHAR(30) NOT NULL, nominal DECIMAL(12,2) NOT NULL, status_verifikasi VARCHAR(20) NOT NULL, metode_pembayaran VARCHAR(50) NOT NULL, tanggal_pembayaran TIMESTAMP NOT NULL, bukti_transfer_url VARCHAR, diverifikasi_oleh INTEGER);
-CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_booking INTEGER, aktivitas VARCHAR(100) NOT NULL, detail_aktivitas TEXT, waktu_aktivitas TIMESTAMP NOT NULL);
+CREATE TABLE pembayaran (id_pembayaran INTEGER PRIMARY KEY, id_booking INTEGER NOT NULL, jenis_pembayaran VARCHAR(20) NOT NULL, nominal DECIMAL(12,2) NOT NULL, status_verifikasi VARCHAR(30) NOT NULL, metode_pembayaran VARCHAR(30) NOT NULL, tanggal_pembayaran TIMESTAMP NOT NULL, bukti_transfer_url VARCHAR, diverifikasi_oleh INTEGER);
+CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_booking INTEGER, aktivitas VARCHAR(255) NOT NULL, detail_aktivitas TEXT, waktu_aktivitas TIMESTAMP NOT NULL);
 `;
 
     function downloadErd(kind) {
