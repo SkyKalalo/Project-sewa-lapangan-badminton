@@ -35,7 +35,9 @@ class OwnerReportController extends Controller
         }
         usort($hours, fn ($a, $b) => $a['slot_terpesan'] <=> $b['slot_terpesan'] ?: strcmp($a['jam_mulai'], $b['jam_mulai']));
         $courts = DB::table('lapangan as l')->leftJoin('detail_booking as d', function($join) use($d) { $join->on('d.id_lapangan','=','l.id_lapangan')->whereBetween('d.tanggal_main',[$d['mulai'],$d['selesai']]); })->leftJoin('booking as b','b.id_booking','=','d.id_booking')->select('l.nomor_lapangan')->selectRaw("count(case when b.status_booking <> 'Dibatalkan' then d.id_detail end) as slot_terpesan")->groupBy('l.nomor_lapangan')->orderBy('l.nomor_lapangan')->get();
-        return ['lapangan' => $courts, 'jam_sepi' => array_slice($hours, 0, 5), 'rekomendasi' => array_slice($hours, 0, 3)];
+        $recommendations = array_slice($hours, 0, 3);
+        usort($hours, fn ($a, $b) => strcmp($a['jam_mulai'], $b['jam_mulai']));
+        return ['lapangan' => $courts, 'jam_operasional' => $hours, 'jam_sepi' => $hours, 'rekomendasi' => $recommendations];
     }
     public function activities() { return DB::table('log_aktivitas')->leftJoin('pengguna','pengguna.id_pengguna','=','log_aktivitas.id_pengguna')->orderByDesc('waktu_aktivitas')->select('log_aktivitas.*','pengguna.nama')->get(); }
 }
