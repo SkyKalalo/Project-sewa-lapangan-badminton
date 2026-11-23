@@ -12,6 +12,14 @@ class BookingService
     public function create(array $data, ?int $adminId = null): array
     {
         return DB::transaction(function () use ($data, $adminId) {
+            $data['nama_pelanggan'] = trim((string) $data['nama_pelanggan']);
+            $data['no_hp'] = preg_replace('/\D+/', '', (string) $data['no_hp']);
+            if (mb_strlen($data['nama_pelanggan']) < 2) {
+                throw ValidationException::withMessages(['nama_pelanggan' => 'Nama pelanggan wajib diisi minimal 2 karakter.']);
+            }
+            if (strlen($data['no_hp']) < 9) {
+                throw ValidationException::withMessages(['no_hp' => 'Nomor telepon minimal 9 digit.']);
+            }
             $start = Carbon::parse("{$data['tanggal_main']} {$data['jam_mulai']}", 'Asia/Makassar');
             $customer = DB::table('pelanggan')->where('no_hp', $data['no_hp'])->first();
             $maxDate = now('Asia/Makassar')->startOfDay()->addDays($customer?->is_member ? 14 : 3);

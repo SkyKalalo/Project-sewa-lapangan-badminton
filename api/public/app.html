@@ -1370,7 +1370,8 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
 
     function mergeApiBooking(result) {
       const customerName = result.nama_pelanggan || result.nama;
-      const customer = state.db.cust.find((x) => x.hp.replace(/\D/g, '') === result.no_hp.replace(/\D/g, '')) || { id: nid(state.db.cust), nama: customerName, hp: result.no_hp, member: false, ca: new Date().toISOString(), ua: new Date().toISOString() };
+      const customer = state.db.cust.find((x) => x.hp.replace(/\D/g, '') === result.no_hp.replace(/\D/g, '')) || { id: result.id_pelanggan || nid(state.db.cust), nama: customerName, hp: result.no_hp, member: false, ca: new Date().toISOString(), ua: new Date().toISOString() };
+      if (result.id_pelanggan) customer.id = result.id_pelanggan;
       if (result.is_member !== undefined) customer.member = !!result.is_member;
       if (!state.db.cust.some((x) => x.id === customer.id)) state.db.cust.push(customer);
       const booking = { id: result.id_booking, k: result.kode_booking, c: customer.id, st: result.status_booking, tot: Number(result.total_biaya), exp: result.batas_waktu_dp, pg: 0, hg: false, adm: null, dibuat: new Date().toISOString() };
@@ -2618,11 +2619,12 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
         const hist = cust ? db.bk.filter((b) => b.c === cust.id) : [];
         return `
           <div class="space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-3"><div><h1 class="text-2xl font-extrabold text-white">Pelanggan &amp; Member</h1><p class="text-indigo-200 text-sm">Kelola pelanggan dan lihat pelanggan yang memiliki status member.</p></div><div class="flex gap-2 text-xs font-bold"><span class="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">Pelanggan</span><span class="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800">Member · 14 hari</span></div></div>
             <div class="bg-[#f4f4f9] rounded-[26px] p-4 shadow-md flex flex-wrap gap-2 items-center">
               <input value="${esc(state.crmQuery)}" oninput="state.crmQuery=this.value; render()" placeholder="Cari nama atau nomor HP pelanggan..." class="flex-1 px-3.5 py-2 rounded-xl border border-indigo-200 bg-white text-sm" />
-              ${db.cust.slice(0, 3).map((x) => `<button type="button" onclick="state.crmQuery='${esc(x.hp)}'; render()" class="px-3 py-1.5 rounded-xl bg-indigo-50 text-teal-700 border text-xs font-bold cursor-pointer">${esc(x.nama)}</button>`).join('')}
+              ${db.cust.slice(0, 6).map((x) => `<button type="button" onclick="state.crmQuery='${esc(x.hp)}'; render()" class="px-3 py-1.5 rounded-xl ${x.member ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-indigo-50 text-teal-700'} border text-xs font-bold cursor-pointer">${esc(x.nama)}${x.member ? ' · Member' : ''}</button>`).join('')}
             </div>
-            ${cust ? `<div class="bg-[#f4f4f9] rounded-[26px] p-5 shadow-md"><div class="flex flex-wrap items-center justify-between gap-2"><h2 class="font-bold">${esc(cust.nama)} (${esc(cust.hp)}) — ${hist.length} Booking</h2><button type="button" onclick="adminToggleMember(${cust.id})" class="px-3 py-1.5 rounded-xl text-xs font-bold ${cust.member ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-indigo-600 text-white'}">${cust.member ? 'Member · 14 hari' : 'Jadikan Member'}</button></div><p class="text-xs text-slate-500 mt-2">${cust.member ? 'Pelanggan ini dapat booking hingga 14 hari ke depan.' : 'Pelanggan biasa dapat booking hingga 3 hari ke depan.'}</p></div>` : ''}
+            ${cust ? `<div class="bg-[#f4f4f9] rounded-[26px] p-5 shadow-md"><div class="flex flex-wrap items-center justify-between gap-2"><h2 class="font-bold">${esc(cust.nama)} (${esc(cust.hp)}) <span class="ml-1 px-2 py-0.5 rounded-full text-[11px] ${cust.member ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'}">${cust.member ? 'Member' : 'Pelanggan'}</span> — ${hist.length} Booking</h2><button type="button" onclick="adminToggleMember(${cust.id})" class="px-3 py-1.5 rounded-xl text-xs font-bold ${cust.member ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-indigo-600 text-white'}">${cust.member ? 'Member · 14 hari' : 'Jadikan Member'}</button></div><p class="text-xs text-slate-500 mt-2">${cust.member ? 'Pelanggan ini dapat booking hingga 14 hari ke depan.' : 'Pelanggan biasa dapat booking hingga 3 hari ke depan.'}</p></div>` : ''}
           </div>
         `;
       }

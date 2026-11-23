@@ -38,7 +38,7 @@ class BookingController extends Controller
         $detailSummary = \DB::query()->fromSub($perCourt, 'pc')->selectRaw('id_booking, MIN(id_lapangan) as id_lapangan, MIN(tanggal_main) as tanggal_main, MIN(jam_mulai) as jam_mulai, MAX(jam_selesai) as jam_selesai, MAX(durasi) as durasi')->groupBy('id_booking');
         $rows = \DB::table('booking as b')->join('pelanggan as c', 'c.id_pelanggan', '=', 'b.id_pelanggan')
             ->leftJoinSub($detailSummary, 'd', 'd.id_booking', '=', 'b.id_booking')
-            ->select('b.*', 'c.nama', 'c.no_hp', 'c.is_member', 'd.id_lapangan', 'd.tanggal_main', 'd.jam_mulai', 'd.jam_selesai', 'd.durasi')
+            ->select('b.*', 'c.id_pelanggan', 'c.nama', 'c.no_hp', 'c.is_member', 'd.id_lapangan', 'd.tanggal_main', 'd.jam_mulai', 'd.jam_selesai', 'd.durasi')
             ->orderByDesc('b.id_booking')->get();
         $courts = \DB::table('detail_booking')->whereIn('id_booking', $rows->pluck('id_booking'))->get(['id_booking', 'id_lapangan'])->groupBy('id_booking');
         return $rows->map(function ($row) use ($courts) { $row->id_lapangans = ($courts[$row->id_booking] ?? collect())->pluck('id_lapangan')->unique()->values(); return $row; });
