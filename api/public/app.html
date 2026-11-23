@@ -1363,7 +1363,8 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) {
-        const error = new Error(body.message || Object.values(body.errors || {}).flat()[0] || 'Permintaan ke server gagal.');
+        const validationMessage = Object.values(body.errors || {}).flat().filter(Boolean)[0];
+        const error = new Error(body.message || validationMessage || `Server menolak permintaan (HTTP ${response.status}).`);
         error.status = response.status;
         throw error;
       }
@@ -2011,6 +2012,7 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
         const result = await apiRequest('/booking', { method: 'POST', body: JSON.stringify({ nama_pelanggan: f.nama.trim(), no_hp: f.hp.trim(), id_lapangans: laps, tanggal_main: f.tgl, jam_mulai: `${pad(f.jam)}:00`, durasi: f.dur }) });
         const b = mergeApiBooking(result);
         state.form.err = '';
+        state.fb = null;
         state.form.done = { k: b.k, l: laps.join(', '), t: f.tgl, s: f.jam, du: f.dur, nama: f.nama, hp: f.hp, tot: b.tot };
         saveDB(state.db);
         render();
