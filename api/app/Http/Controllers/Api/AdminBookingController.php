@@ -31,7 +31,7 @@ class AdminBookingController extends Controller
             abort_unless($booking && $booking->status_booking !== 'Dibatalkan' && $booking->jumlah_pindah_jadwal < 1, 422, 'Booking tidak dapat dipindahkan.');
             $details = DB::table('detail_booking')->where('id_booking', $booking->id_booking)->orderBy('tanggal_main')->orderBy('jam_mulai')->get();
             $detail = $details->first();
-            if (now()->diffInHours(Carbon::parse("{$detail->tanggal_main} {$detail->jam_mulai}", 'Asia/Makassar'), false) <= 24) throw ValidationException::withMessages(['jadwal' => 'Pindah jadwal harus lebih dari 24 jam sebelum bermain.']);
+            if (now('Asia/Makassar')->diffInHours(Carbon::parse("{$detail->tanggal_main} {$detail->jam_mulai}", 'Asia/Makassar'), false) <= 24) throw ValidationException::withMessages(['jadwal' => 'Pindah jadwal harus lebih dari 24 jam sebelum bermain.']);
             $start = Carbon::parse("{$data['tanggal_main']} {$data['jam_mulai']}", 'Asia/Makassar');
             $byCourt = $details->groupBy('id_lapangan');
             $duration = $byCourt->map(fn ($rows) => $rows->sum('durasi'))->max();

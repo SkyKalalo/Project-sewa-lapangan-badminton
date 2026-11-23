@@ -30,6 +30,7 @@ Route::middleware('role:Admin')->prefix('admin')->group(function () {
     Route::post('/booking/{kode}/batal', [AdminBookingController::class, 'cancel']);
     Route::post('/booking/{kode}/pindah-jadwal', [AdminBookingController::class, 'reschedule']);
     Route::get('/pelanggan/{no_hp}/riwayat', [CustomerController::class, 'history']);
+    Route::patch('/pelanggan/{id}/member', [CustomerController::class, 'toggleMember']);
     Route::get('/permohonan', [BookingRequestController::class, 'index']);
     Route::patch('/permohonan/{id}/proses', [BookingRequestController::class, 'process']);
     Route::patch('/lapangan/{id}/status', [AdminOperationsController::class, 'toggleCourt']);

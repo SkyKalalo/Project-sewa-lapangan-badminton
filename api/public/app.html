@@ -840,6 +840,14 @@ Check your Browserslist config to be sure that your targets are set up correctly
       return state.form.laps || [state.form.lap];
     }
 
+    function bookingMaxDate() {
+      const hp = state.form.hp.replace(/\D/g, '');
+      const customer = state.db.cust.find((x) => x.hp.replace(/\D/g, '') === hp);
+      const d = new Date(`${D0}T00:00:00`);
+      d.setDate(d.getDate() + (customer?.member ? 14 : 3));
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
     function maxBookingDuration(startHour) {
       return Math.max(0, Math.min(4, 23 - startHour));
     }
@@ -1173,6 +1181,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
         if (p.vb === undefined) p.vb = p.st === 'Terverifikasi' && DB.user[0] ? DB.user[0].id : null;
       });
       DB.cust.forEach((c) => {
+        if (c.member === undefined) c.member = !!c.is_member;
         if (!c.ca) {
           const f = DB.bk.filter((b) => b.c === c.id).map((b) => b.dibuat || now).sort()[0];
           c.ca = f || now;
@@ -1363,7 +1372,8 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
 
     function mergeApiBooking(result) {
       const customerName = result.nama_pelanggan || result.nama;
-      const customer = state.db.cust.find((x) => x.hp.replace(/\D/g, '') === result.no_hp.replace(/\D/g, '')) || { id: nid(state.db.cust), nama: customerName, hp: result.no_hp, ca: new Date().toISOString(), ua: new Date().toISOString() };
+      const customer = state.db.cust.find((x) => x.hp.replace(/\D/g, '') === result.no_hp.replace(/\D/g, '')) || { id: nid(state.db.cust), nama: customerName, hp: result.no_hp, member: false, ca: new Date().toISOString(), ua: new Date().toISOString() };
+      if (result.is_member !== undefined) customer.member = !!result.is_member;
       if (!state.db.cust.some((x) => x.id === customer.id)) state.db.cust.push(customer);
       const booking = { id: result.id_booking, k: result.kode_booking, c: customer.id, st: result.status_booking, tot: Number(result.total_biaya), exp: result.batas_waktu_dp, pg: 0, hg: false, adm: null, dibuat: new Date().toISOString() };
       state.db.bk = state.db.bk.filter((x) => x.id !== booking.id && x.k !== booking.k);
@@ -1983,6 +1993,7 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       else if (f.hp.replace(/\D/g, '').length < 9) err = 'Nomor WhatsApp minimal 9 digit.';
       else if (!f.tgl || f.tgl < D0) err = 'Tanggal main tidak boleh sebelum hari ini.';
       else if (f.jam < 7 || f.dur > maxBookingDuration(f.jam)) err = 'Durasi melewati jam tutup GOR (23:00 WITA).';
+      else if (f.tgl > bookingMaxDate()) err = `Tanggal booking melewati batas. ${state.db.cust.find((x) => x.hp.replace(/\D/g, '') === f.hp.replace(/\D/g, ''))?.member ? 'Member dapat booking sampai 14 hari ke depan.' : 'Pelanggan biasa dapat booking sampai 3 hari ke depan.'}`;
       else if (laps.length < 1 || laps.length > 4) err = 'Pilih 1 sampai 4 lapangan.';
       else {
         for (const courtId of laps) {
@@ -2068,7 +2079,7 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
               <div><label class="block text-xs font-semibold text-slate-700 mb-1">Nama Pemesan</label><input value="${esc(f.nama)}" oninput="state.form.nama=this.value" placeholder="Ketik nama lengkap Anda" class="w-full px-3 py-2.5 rounded-xl border border-indigo-200 bg-white text-sm" /></div>
               <div><label class="block text-xs font-semibold text-slate-700 mb-1">Nomor WhatsApp</label><input value="${esc(f.hp)}" oninput="state.form.hp=this.value" placeholder="0812-3456-7890" class="w-full px-3 py-2.5 rounded-xl border border-indigo-200 bg-white text-sm font-mono" /></div>
               <div class="sm:col-span-2"><label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Lapangan (maksimal 4)</label><div class="grid grid-cols-2 gap-2">${db.lap.map((l) => { const checked = laps.includes(l.id); const free = !checkClash(db, l.id, f.tgl, f.jam, f.jam + 1); return `<label class="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm ${checked ? 'border-teal-600 bg-teal-50' : 'border-indigo-200 bg-white'} ${!free ? 'opacity-50' : ''}"><input type="checkbox" ${checked ? 'checked' : ''} ${!free && !checked ? 'disabled' : ''} onchange="{const ids=selectedCourts(); if(this.checked){if(ids.length>=4){this.checked=false;state.form.err='Maksimal 4 lapangan dalam satu booking.'}else ids.push(${l.id})}else{const i=ids.indexOf(${l.id});if(i>=0)ids.splice(i,1)} state.form.laps=ids;state.form.lap=ids[0]||1;render()}"/><span>${esc(l.nama)}${free ? '' : ' (terisi)'}</span></label>`; }).join('')}</div><div class="text-xs text-slate-500 mt-1">Pilih sampai 4 lapangan untuk waktu booking yang sama.</div></div>
-              <div><label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal Main</label><input type="date" min="${D0}" value="${f.tgl}" onchange="state.form.tgl=clampDate(this.value); render()" class="w-full px-3 py-2.5 rounded-xl border border-indigo-200 bg-white text-sm font-mono" /></div>
+              <div><label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal Main</label><input type="date" min="${D0}" max="${bookingMaxDate()}" value="${f.tgl}" onchange="state.form.tgl=clampDate(this.value); render()" class="w-full px-3 py-2.5 rounded-xl border border-indigo-200 bg-white text-sm font-mono" /><div class="text-xs text-slate-500 mt-1">${state.db.cust.find((x) => x.hp.replace(/\D/g, '') === f.hp.replace(/\D/g, ''))?.member ? 'Member: maksimal 14 hari ke depan.' : 'Pelanggan biasa: maksimal 3 hari ke depan.'}</div></div>
             </div>
             <div>
               <label class="block text-xs font-semibold text-slate-700 mb-1.5">Pilih Jam Mulai</label>
@@ -2329,6 +2340,17 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       } catch (error) { setMsg(error.message, 'e'); }
     }
 
+    async function copyBookingCode(code) {
+      try {
+        await navigator.clipboard.writeText(code);
+        setMsg(`Kode booking ${code} berhasil disalin.`, 'i');
+      } catch {
+        const input = document.createElement('input');
+        input.value = code; document.body.appendChild(input); input.select(); document.execCommand('copy'); input.remove();
+        setMsg(`Kode booking ${code} berhasil disalin.`, 'i');
+      }
+    }
+
     async function adminSettleCash(bookingId, nominal) {
       const db = state.db;
       const b = getBooking(db, bookingId);
@@ -2384,6 +2406,17 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
         l.st = result.status === 'tersedia' ? 'Tersedia' : 'Tidak Tersedia';
         saveDB(state.db);
         setMsg(`${l.nama} kini berstatus: ${l.st}.`);
+      } catch (error) { setMsg(error.message, 'e'); }
+    }
+
+    async function adminToggleMember(customerId) {
+      const customer = state.db.cust.find((x) => x.id === customerId);
+      if (!customer) return;
+      try {
+        const result = await apiRequest(`/admin/pelanggan/${customerId}/member`, { method: 'PATCH' });
+        customer.member = !!result.is_member;
+        saveDB(state.db);
+        setMsg(`${customer.nama} ${customer.member ? 'ditandai sebagai member (14 hari).' : 'dikembalikan sebagai pelanggan biasa (3 hari).'}`);
       } catch (error) { setMsg(error.message, 'e'); }
     }
 
@@ -2462,7 +2495,7 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
               <div class="bg-[#f4f4f9] rounded-[26px] p-5 shadow-md overflow-x-auto max-h-96">
                 <table class="w-full text-sm border-collapse">
                   <thead><tr class="bg-indigo-50 text-left text-xs"><th class="p-2.5">Kode</th><th class="p-2.5">Pelanggan</th><th class="p-2.5">Nominal DP</th><th class="p-2.5">Status</th></tr></thead>
-                  <tbody>${list.map((b) => `<tr onclick="state.selDpId=${b.id}; render()" class="border-t border-slate-100 cursor-pointer ${sel?.id === b.id ? 'bg-teal-50' : ''}"><td class="p-2.5 font-mono font-bold">${esc(b.k)}</td><td class="p-2.5"><b>${esc(getCustomer(db, b).nama)}</b></td><td class="p-2.5 font-mono">${rp(b.tot / 2)}</td><td class="p-2.5">${badgeHtml(getPendingPay(db, b) ? 'Menunggu Verifikasi' : b.st)}</td></tr>`).join('')}</tbody>
+                  <tbody>${list.map((b) => `<tr onclick="state.selDpId=${b.id}; render()" class="border-t border-slate-100 cursor-pointer ${sel?.id === b.id ? 'bg-teal-50' : ''}"><td class="p-2.5 font-mono font-bold whitespace-nowrap">${esc(b.k)} <button type="button" onclick="event.stopPropagation(); copyBookingCode('${esc(b.k)}')" class="ml-1 px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 text-[10px] font-bold">Salin</button></td><td class="p-2.5"><b>${esc(getCustomer(db, b).nama)}</b></td><td class="p-2.5 font-mono">${rp(b.tot / 2)}</td><td class="p-2.5">${badgeHtml(getPendingPay(db, b) ? 'Menunggu Verifikasi' : b.st)}</td></tr>`).join('')}</tbody>
                 </table>
               </div>
               <div class="bg-[#f4f4f9] rounded-[26px] p-5 shadow-md space-y-3">
@@ -2591,7 +2624,7 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
               <input value="${esc(state.crmQuery)}" oninput="state.crmQuery=this.value; render()" placeholder="Cari nama atau nomor HP pelanggan..." class="flex-1 px-3.5 py-2 rounded-xl border border-indigo-200 bg-white text-sm" />
               ${db.cust.slice(0, 3).map((x) => `<button type="button" onclick="state.crmQuery='${esc(x.hp)}'; render()" class="px-3 py-1.5 rounded-xl bg-indigo-50 text-teal-700 border text-xs font-bold cursor-pointer">${esc(x.nama)}</button>`).join('')}
             </div>
-            ${cust ? `<div class="bg-[#f4f4f9] rounded-[26px] p-5 shadow-md"><h2 class="font-bold mb-2">${esc(cust.nama)} (${esc(cust.hp)}) — ${hist.length} Booking</h2></div>` : ''}
+            ${cust ? `<div class="bg-[#f4f4f9] rounded-[26px] p-5 shadow-md"><div class="flex flex-wrap items-center justify-between gap-2"><h2 class="font-bold">${esc(cust.nama)} (${esc(cust.hp)}) — ${hist.length} Booking</h2><button type="button" onclick="adminToggleMember(${cust.id})" class="px-3 py-1.5 rounded-xl text-xs font-bold ${cust.member ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-indigo-600 text-white'}">${cust.member ? 'Member · 14 hari' : 'Jadikan Member'}</button></div><p class="text-xs text-slate-500 mt-2">${cust.member ? 'Pelanggan ini dapat booking hingga 14 hari ke depan.' : 'Pelanggan biasa dapat booking hingga 3 hari ke depan.'}</p></div>` : ''}
           </div>
         `;
       }

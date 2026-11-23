@@ -13,6 +13,11 @@ class BookingService
     {
         return DB::transaction(function () use ($data, $adminId) {
             $start = Carbon::parse("{$data['tanggal_main']} {$data['jam_mulai']}", 'Asia/Makassar');
+            $customer = DB::table('pelanggan')->where('no_hp', $data['no_hp'])->first();
+            $maxDate = now('Asia/Makassar')->startOfDay()->addDays($customer?->is_member ? 14 : 3);
+            if ($start->copy()->startOfDay()->greaterThan($maxDate)) {
+                throw ValidationException::withMessages(['tanggal_main' => $customer?->is_member ? 'Member hanya dapat booking maksimal 14 hari ke depan.' : 'Pelanggan biasa hanya dapat booking maksimal 3 hari ke depan.']);
+            }
             $duration = (int) $data['durasi'];
             $end = $start->copy()->addHours($duration);
             $courtIds = array_values(array_unique(array_map('intval', $data['id_lapangans'] ?? [$data['id_lapangan'] ?? 0])));
@@ -39,7 +44,6 @@ class BookingService
                 if ($overlap) throw ValidationException::withMessages(['jadwal' => "Slot Lapangan {$courtId} sudah terisi."]);
             }
 
-            $customer = DB::table('pelanggan')->where('no_hp', $data['no_hp'])->first();
             $customerId = $customer?->id_pelanggan ?? DB::table('pelanggan')->insertGetId(
                 ['nama' => $data['nama_pelanggan'], 'no_hp' => $data['no_hp'], 'created_at' => now(), 'updated_at' => now()],
                 'id_pelanggan'
