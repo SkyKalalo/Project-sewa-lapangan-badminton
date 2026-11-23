@@ -16,7 +16,8 @@ class AdminBookingController extends Controller
             $booking = DB::table('booking')->where('kode_booking', $kode)->lockForUpdate()->first();
             abort_unless($booking && $booking->status_booking !== 'Dibatalkan', 422, 'Booking tidak dapat dibatalkan.');
             $detail = DB::table('detail_booking')->where('id_booking', $booking->id_booking)->orderBy('tanggal_main')->orderBy('jam_mulai')->first();
-            $hangus = now()->diffInHours(Carbon::parse("{$detail->tanggal_main} {$detail->jam_mulai}"), false) < 24;
+            abort_unless($detail, 422, 'Detail jadwal booking tidak ditemukan.');
+            $hangus = now('Asia/Makassar')->diffInHours(Carbon::parse("{$detail->tanggal_main} {$detail->jam_mulai}", 'Asia/Makassar'), false) < 24;
             DB::table('booking')->where('id_booking', $booking->id_booking)->update(['status_booking' => 'Dibatalkan', 'dp_hangus' => $hangus]);
             DB::table('log_aktivitas')->insert(['id_pengguna' => $request->attributes->get('pengguna')->id_pengguna, 'id_booking' => $booking->id_booking, 'aktivitas' => 'Batalkan booking', 'detail_aktivitas' => $hangus ? 'DP hangus' : 'DP tidak hangus', 'waktu_aktivitas' => now()]);
             return ['status_booking' => 'Dibatalkan', 'dp_hangus' => $hangus];

@@ -33,7 +33,7 @@ class BookingService
             if ($start->minute !== 0 || $start->second !== 0 || $start->hour < 7 || $duration < 1 || $duration > 4 || $end->toDateString() !== $start->toDateString() || $end->format('H:i:s') > '23:00:00') {
                 throw ValidationException::withMessages(['jadwal' => 'GOR buka pukul 07.00–23.00. Durasi maksimal 4 jam dan booking harus selesai paling lambat pukul 23.00.']);
             }
-            if ($start->lessThanOrEqualTo(now())) throw ValidationException::withMessages(['jadwal' => 'Waktu mulai booking harus berada di masa depan.']);
+            if ($start->lessThanOrEqualTo(now('Asia/Makassar'))) throw ValidationException::withMessages(['jadwal' => 'Waktu mulai booking harus berada di masa depan.']);
             if (count($courtIds) < 1 || count($courtIds) > 4) {
                 throw ValidationException::withMessages(['id_lapangans' => 'Pilih 1 sampai 4 lapangan.']);
             }

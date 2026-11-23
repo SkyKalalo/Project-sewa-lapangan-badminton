@@ -18,8 +18,9 @@ class BookingRequestController extends Controller
             'tanggal_tujuan' => 'nullable|date',
             'jam_tujuan' => 'nullable|date_format:H:i',
         ]);
+        $data['no_hp'] = preg_replace('/\D+/', '', (string) $data['no_hp']);
         $booking = DB::table('booking')->join('pelanggan', 'pelanggan.id_pelanggan', '=', 'booking.id_pelanggan')
-            ->where('kode_booking', $kode)->where('no_hp', $data['no_hp'])->select('booking.*')->first();
+            ->where('kode_booking', $kode)->where('pelanggan.no_hp', $data['no_hp'])->select('booking.*')->first();
         abort_unless($booking, 404);
         abort_unless($booking->status_booking !== 'Dibatalkan', 422, 'Booking sudah dibatalkan.');
         abort_unless(! DB::table('permohonan_booking')->where('id_booking', $booking->id_booking)->where('status', 'Menunggu')->exists(), 422, 'Masih ada permohonan yang menunggu diproses.');
