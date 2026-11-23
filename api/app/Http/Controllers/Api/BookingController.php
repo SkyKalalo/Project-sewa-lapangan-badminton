@@ -19,7 +19,8 @@ class BookingController extends Controller
 
     public function adminStore(Request $request, BookingService $bookings)
     {
-        $data = $request->validate(['nama_pelanggan' => 'required|string|max:100', 'no_hp' => 'required|string|max:20', 'id_lapangan' => 'required|integer', 'tanggal_main' => 'required|date', 'jam_mulai' => 'required|date_format:H:i', 'durasi' => 'required|integer|min:1', 'dp_terverifikasi' => 'boolean']);
+        $data = $request->validate(['nama_pelanggan' => 'required|string|max:100', 'no_hp' => 'required|string|max:20', 'tipe_pelanggan' => 'nullable|in:member,regular', 'id_lapangan' => 'required|integer', 'tanggal_main' => 'required|date', 'jam_mulai' => 'required|date_format:H:i', 'durasi' => 'required|integer|min:1', 'dp_terverifikasi' => 'boolean']);
+        $data['tipe_pelanggan'] = $data['tipe_pelanggan'] ?? 'regular';
         $result = $bookings->create($data, $request->attributes->get('pengguna')->id_pengguna);
         if (! empty($data['dp_terverifikasi'])) {
             \DB::transaction(function () use ($result, $request) {
@@ -47,7 +48,7 @@ class BookingController extends Controller
     public function store(Request $request, BookingService $bookings)
     {
         $data = $request->validate([
-            'nama_pelanggan' => 'required|string|max:100', 'no_hp' => 'required|string|max:20',
+            'nama_pelanggan' => 'required|string|max:100', 'no_hp' => 'required|string|max:20', 'tipe_pelanggan' => 'required|in:member,regular',
             'id_lapangan' => 'required_without:id_lapangans|integer',
             'id_lapangans' => 'required_without:id_lapangan|array|min:1|max:4',
             'id_lapangans.*' => 'required|integer|distinct',

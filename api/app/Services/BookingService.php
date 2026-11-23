@@ -26,7 +26,16 @@ class BookingService
             $customer = DB::table('pelanggan')->get(['id_pelanggan', 'nama', 'no_hp', 'is_member'])
                 ->first(fn ($row) => preg_replace('/\D+/', '', (string) $row->no_hp) === $data['no_hp']);
             $isMember = filter_var($customer?->is_member, FILTER_VALIDATE_BOOLEAN);
-            $maxDays = $isMember ? 14 : 3;
+            $requestedType = array_key_exists('tipe_pelanggan', $data) && $data['tipe_pelanggan'] !== null
+                ? $data['tipe_pelanggan']
+                : ($isMember ? 'member' : 'regular');
+            if ($requestedType === 'member' && ! $isMember) {
+                throw ValidationException::withMessages(['tipe_pelanggan' => 'Nomor WhatsApp belum terdaftar sebagai member.']);
+            }
+            if ($requestedType === 'regular' && $isMember) {
+                throw ValidationException::withMessages(['tipe_pelanggan' => 'Nomor WhatsApp ini terdaftar sebagai member. Pilih Member.']);
+            }
+            $maxDays = $requestedType === 'member' ? 14 : 3;
             $maxDate = now('Asia/Makassar')->startOfDay()->addDays($maxDays);
             if ($start->copy()->startOfDay()->greaterThan($maxDate)) {
                 throw ValidationException::withMessages(['tanggal_main' => $isMember ? 'Member hanya dapat booking maksimal 14 hari ke depan.' : 'Pelanggan biasa hanya dapat booking maksimal 3 hari ke depan.']);
