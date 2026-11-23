@@ -1467,7 +1467,7 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       state.screen = target;
       render();
       if (target === 'c-jadwal') refreshPublicSchedule(state.gf.tgl);
-      if (target === 'a-ubah') refreshAdminData();
+      if (target === 'a-ubah' || target === 'a-pelanggan') refreshAdminData();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -2617,6 +2617,9 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
         const dg = q.replace(/\D/g, '');
         const cust = q.trim() ? db.cust.find((x) => x.nama.toLowerCase().includes(q) || (dg.length > 3 && x.hp.replace(/\D/g, '').includes(dg))) : null;
         const hist = cust ? db.bk.filter((b) => b.c === cust.id) : [];
+        const memberCustomers = db.cust.filter((x) => x.member).sort((a, b) => a.nama.localeCompare(b.nama));
+        const regularCustomers = db.cust.filter((x) => !x.member).sort((a, b) => a.nama.localeCompare(b.nama));
+        const customerRows = (customers, emptyText) => customers.length ? customers.map((x) => `<button type="button" onclick="state.crmQuery='${esc(x.hp)}'; render()" class="w-full text-left flex items-center justify-between gap-3 px-3 py-2 rounded-xl bg-white border border-slate-200 hover:border-teal-300 cursor-pointer"><span><b>${esc(x.nama)}</b><span class="block text-xs text-slate-500">${esc(x.hp)}</span></span><span class="text-xs font-bold text-slate-500">${db.bk.filter((b) => b.c === x.id).length} booking</span></button>`).join('') : `<p class="text-sm text-slate-500">${emptyText}</p>`;
         return `
           <div class="space-y-4">
             <div class="flex flex-wrap items-center justify-between gap-3"><div><h1 class="text-2xl font-extrabold text-white">Pelanggan &amp; Member</h1><p class="text-indigo-200 text-sm">Kelola pelanggan dan lihat pelanggan yang memiliki status member.</p></div><div class="flex gap-2 text-xs font-bold"><span class="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">Pelanggan</span><span class="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800">Member · 14 hari</span></div></div>
@@ -2625,6 +2628,10 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
               ${db.cust.slice(0, 6).map((x) => `<button type="button" onclick="state.crmQuery='${esc(x.hp)}'; render()" class="px-3 py-1.5 rounded-xl ${x.member ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-indigo-50 text-teal-700'} border text-xs font-bold cursor-pointer">${esc(x.nama)}${x.member ? ' · Member' : ''}</button>`).join('')}
             </div>
             ${cust ? `<div class="bg-[#f4f4f9] rounded-[26px] p-5 shadow-md"><div class="flex flex-wrap items-center justify-between gap-2"><h2 class="font-bold">${esc(cust.nama)} (${esc(cust.hp)}) <span class="ml-1 px-2 py-0.5 rounded-full text-[11px] ${cust.member ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'}">${cust.member ? 'Member' : 'Pelanggan'}</span> — ${hist.length} Booking</h2><button type="button" onclick="adminToggleMember(${cust.id})" class="px-3 py-1.5 rounded-xl text-xs font-bold ${cust.member ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-indigo-600 text-white'}">${cust.member ? 'Member · 14 hari' : 'Jadikan Member'}</button></div><p class="text-xs text-slate-500 mt-2">${cust.member ? 'Pelanggan ini dapat booking hingga 14 hari ke depan.' : 'Pelanggan biasa dapat booking hingga 3 hari ke depan.'}</p></div>` : ''}
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <section class="bg-[#f4f4f9] rounded-[26px] p-5 shadow-md"><div class="flex items-center justify-between mb-3"><h2 class="font-bold text-indigo-950">Pelanggan Biasa</h2><span class="text-xs font-bold text-slate-500">${regularCustomers.length} orang</span></div><div class="space-y-2 max-h-72 overflow-y-auto">${customerRows(regularCustomers, 'Belum ada pelanggan biasa.')}</div></section>
+              <section class="bg-[#f4f4f9] rounded-[26px] p-5 shadow-md"><div class="flex items-center justify-between mb-3"><h2 class="font-bold text-amber-800">Member</h2><span class="text-xs font-bold text-amber-700">${memberCustomers.length} orang</span></div><div class="space-y-2 max-h-72 overflow-y-auto">${customerRows(memberCustomers, 'Belum ada pelanggan yang menjadi member.')}</div></section>
+            </div>
           </div>
         `;
       }
@@ -2936,7 +2943,7 @@ CREATE TABLE log_aktivitas (id_log INTEGER PRIMARY KEY, id_pengguna INTEGER, id_
       state.fb = null;
       render();
       if (target === 'c-jadwal') refreshPublicSchedule(state.gf.tgl);
-      if (target === 'a-ubah') refreshAdminData();
+      if (target === 'a-ubah' || target === 'a-pelanggan') refreshAdminData();
     });
 
     // Boot & Cron Worker
