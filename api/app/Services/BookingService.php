@@ -21,10 +21,15 @@ class BookingService
                 throw ValidationException::withMessages(['no_hp' => 'Nomor telepon minimal 9 digit.']);
             }
             $start = Carbon::parse("{$data['tanggal_main']} {$data['jam_mulai']}", 'Asia/Makassar');
-            $customer = DB::table('pelanggan')->where('no_hp', $data['no_hp'])->first();
-            $maxDate = now('Asia/Makassar')->startOfDay()->addDays($customer?->is_member ? 14 : 3);
+            // Match normalized phone numbers so formatting differences do not
+            // bypass the customer/member booking window.
+            $customer = DB::table('pelanggan')->get(['id_pelanggan', 'nama', 'no_hp', 'is_member'])
+                ->first(fn ($row) => preg_replace('/\D+/', '', (string) $row->no_hp) === $data['no_hp']);
+            $isMember = filter_var($customer?->is_member, FILTER_VALIDATE_BOOLEAN);
+            $maxDays = $isMember ? 14 : 3;
+            $maxDate = now('Asia/Makassar')->startOfDay()->addDays($maxDays);
             if ($start->copy()->startOfDay()->greaterThan($maxDate)) {
-                throw ValidationException::withMessages(['tanggal_main' => $customer?->is_member ? 'Member hanya dapat booking maksimal 14 hari ke depan.' : 'Pelanggan biasa hanya dapat booking maksimal 3 hari ke depan.']);
+                throw ValidationException::withMessages(['tanggal_main' => $isMember ? 'Member hanya dapat booking maksimal 14 hari ke depan.' : 'Pelanggan biasa hanya dapat booking maksimal 3 hari ke depan.']);
             }
             $duration = (int) $data['durasi'];
             $end = $start->copy()->addHours($duration);
